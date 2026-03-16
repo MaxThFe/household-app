@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.core.config import settings
 from app.core.database import init_db
 from app.routers import calendar, meals, recipes, shopping
 from app.services.ics_sync import run_ics_sync_loop
@@ -40,3 +41,8 @@ app.include_router(calendar.router, prefix="/api/v1")
 @app.get("/health")
 async def health():
     return {"status": "ok"}
+
+
+@app.get("/api/v1/config")
+async def config():
+    return {"user1_name": settings.user1_name, "user2_name": settings.user2_name}

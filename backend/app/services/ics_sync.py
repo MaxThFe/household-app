@@ -2,11 +2,11 @@ import asyncio
 import logging
 from datetime import datetime, timezone
 
+import aiosqlite
 import httpx
 from icalendar import Calendar
 
 from app.core.config import settings
-from app.core.database import get_db
 
 logger = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ def assign_shift_color(title: str) -> str:
     return "#534AB7"
 
 
-async def sync_ics(db) -> None:
+async def sync_ics(db: aiosqlite.Connection) -> None:
     if not settings.ics_url:
         return
 
@@ -91,7 +91,6 @@ async def sync_ics(db) -> None:
             (date_str, title, start_time_str, end_time_str, all_day, uid, color, notes),
         )
 
-    # Delete stale ICS events not in current feed
     if seen_uids:
         placeholders = ",".join("?" * len(seen_uids))
         await db.execute(
@@ -108,7 +107,9 @@ async def sync_ics(db) -> None:
 async def run_ics_sync_loop() -> None:
     while True:
         try:
-            async with get_db() as db:
+            async with aiosqlite.connect(settings.database_path) as db:
+                await db.execute("PRAGMA foreign_keys=ON")
+                db.row_factory = aiosqlite.Row
                 await sync_ics(db)
         except Exception:
             logger.exception("ICS sync failed")

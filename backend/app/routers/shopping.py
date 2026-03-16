@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.core.auth import require_auth
 from app.core.database import get_db
@@ -9,27 +9,26 @@ router = APIRouter(prefix="/shopping", tags=["shopping"])
 
 @router.get("", response_model=ShoppingListResponse)
 async def get_shopping_list(db=Depends(get_db)):
-    async with db:
-        async with db.execute(
-            """
-            SELECT
-                MIN(si.id) as id,
-                si.name,
-                SUM(si.quantity) as quantity,
-                si.unit,
-                si.store,
-                MIN(si.source_recipe_id) as source_recipe_id,
-                MIN(si.source_meal_id) as source_meal_id,
-                MAX(si.is_manual) as is_manual,
-                MIN(si.added_at) as added_at,
-                REPLACE(GROUP_CONCAT(DISTINCT r.name), ',', ' + ') as source_names
-            FROM shopping_items si
-            LEFT JOIN recipes r ON si.source_recipe_id = r.id
-            GROUP BY si.name, si.unit, si.store
-            ORDER BY si.store, si.name
-            """
-        ) as cursor:
-            rows = await cursor.fetchall()
+    async with db.execute(
+        """
+        SELECT
+            MIN(si.id) as id,
+            si.name,
+            SUM(si.quantity) as quantity,
+            si.unit,
+            si.store,
+            MIN(si.source_recipe_id) as source_recipe_id,
+            MIN(si.source_meal_id) as source_meal_id,
+            MAX(si.is_manual) as is_manual,
+            MIN(si.added_at) as added_at,
+            REPLACE(GROUP_CONCAT(DISTINCT r.name), ',', ' + ') as source_names
+        FROM shopping_items si
+        LEFT JOIN recipes r ON si.source_recipe_id = r.id
+        GROUP BY si.name, si.unit, si.store
+        ORDER BY si.store, si.name
+        """
+    ) as cursor:
+        rows = await cursor.fetchall()
 
     supermarket = []
     household = []
@@ -47,38 +46,35 @@ async def get_shopping_list(db=Depends(get_db)):
 async def add_shopping_item(
     body: ShoppingItemCreate, db=Depends(get_db), _=Depends(require_auth)
 ):
-    async with db:
-        cursor = await db.execute(
-            "INSERT INTO shopping_items (name, quantity, unit, store, is_manual) VALUES (?, ?, ?, ?, 1)",
-            (body.name, body.quantity, body.unit, body.store),
-        )
-        item_id = cursor.lastrowid
-        await db.commit()
-        async with db.execute(
-            "SELECT * FROM shopping_items WHERE id = ?", (item_id,)
-        ) as cur:
-            item = await cur.fetchone()
-        return ShoppingItemResponse.model_validate(dict(item))
+    cursor = await db.execute(
+        "INSERT INTO shopping_items (name, quantity, unit, store, is_manual) VALUES (?, ?, ?, ?, 1)",
+        (body.name, body.quantity, body.unit, body.store),
+    )
+    item_id = cursor.lastrowid
+    await db.commit()
+    async with db.execute("SELECT * FROM shopping_items WHERE id = ?", (item_id,)) as cur:
+        item = await cur.fetchone()
+    return ShoppingItemResponse.model_validate(dict(item))
 
 
 # IMPORTANT: "checked" route must be registered BEFORE "/{item_id}" to avoid routing conflict
 @router.delete("/checked", status_code=204)
-async def delete_checked_items(ids: list[int], db=Depends(get_db), _=Depends(require_auth)):
+async def delete_checked_items(
+    ids: list[int] = Query(default=[]), db=Depends(get_db), _=Depends(require_auth)
+):
     if not ids:
         return
-    async with db:
-        placeholders = ",".join("?" * len(ids))
-        await db.execute(f"DELETE FROM shopping_items WHERE id IN ({placeholders})", ids)
-        await db.commit()
+    placeholders = ",".join("?" * len(ids))
+    await db.execute(f"DELETE FROM shopping_items WHERE id IN ({placeholders})", ids)
+    await db.commit()
 
 
 @router.delete("/{item_id}", status_code=204)
 async def delete_shopping_item(item_id: int, db=Depends(get_db), _=Depends(require_auth)):
-    async with db:
-        async with db.execute(
-            "SELECT id FROM shopping_items WHERE id = ?", (item_id,)
-        ) as cursor:
-            if not await cursor.fetchone():
-                raise HTTPException(status_code=404, detail="Item not found")
-        await db.execute("DELETE FROM shopping_items WHERE id = ?", (item_id,))
-        await db.commit()
+    async with db.execute(
+        "SELECT id FROM shopping_items WHERE id = ?", (item_id,)
+    ) as cursor:
+        if not await cursor.fetchone():
+            raise HTTPException(status_code=404, detail="Item not found")
+    await db.execute("DELETE FROM shopping_items WHERE id = ?", (item_id,))
+    await db.commit()

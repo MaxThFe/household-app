@@ -1,6 +1,5 @@
 import os
 from collections.abc import AsyncGenerator
-from contextlib import asynccontextmanager
 
 import aiosqlite
 
@@ -67,7 +66,6 @@ async def init_db() -> None:
         await db.commit()
 
 
-@asynccontextmanager
 async def get_db() -> AsyncGenerator[aiosqlite.Connection, None]:
     async with aiosqlite.connect(settings.database_path) as db:
         await db.execute("PRAGMA foreign_keys=ON")
