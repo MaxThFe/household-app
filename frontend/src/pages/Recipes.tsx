@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { api, Recipe, Ingredient } from '../api/client'
 import { Modal } from '../components/Modal'
 
+const ALL_TAGS = ['Quick', 'Veggie', 'Vegan', 'Pasta', 'Rice', 'Soup', 'Salad', 'Meat', 'Fish', 'Breakfast']
+
 // --- Recipe form ---
 interface IngredientDraft {
   name: string
@@ -17,15 +19,25 @@ interface RecipeFormProps {
 
 function RecipeForm({ initial, onClose, onSaved }: RecipeFormProps) {
   const [name, setName] = useState(initial?.name ?? '')
-  const [tags, setTags] = useState(initial?.tags ?? '')
+  const [selectedTags, setSelectedTags] = useState<Set<string>>(
+    () => new Set(initial?.tags ? initial.tags.split(',').map(t => t.trim()).filter(Boolean) : [])
+  )
   const [notes, setNotes] = useState(initial?.notes ?? '')
   const [ingredients, setIngredients] = useState<IngredientDraft[]>(
-    initial?.ingredients.map(i => ({ name: i.name, quantity: i.quantity?.toString() ?? '', unit: i.unit })) ?? [{ name: '', quantity: '', unit: '' }]
+    initial?.ingredients.map(i => ({ name: i.name, quantity: i.quantity?.toString() ?? '1', unit: i.unit })) ?? [{ name: '', quantity: '1', unit: '' }]
   )
   const [saving, setSaving] = useState(false)
 
+  function toggleTag(tag: string) {
+    setSelectedTags(prev => {
+      const next = new Set(prev)
+      next.has(tag) ? next.delete(tag) : next.add(tag)
+      return next
+    })
+  }
+
   function addIngredient() {
-    setIngredients(prev => [...prev, { name: '', quantity: '', unit: '' }])
+    setIngredients(prev => [...prev, { name: '', quantity: '1', unit: '' }])
   }
 
   function updateIngredient(i: number, field: keyof IngredientDraft, val: string) {
@@ -39,6 +51,7 @@ function RecipeForm({ initial, onClose, onSaved }: RecipeFormProps) {
   async function handleSave() {
     if (!name.trim()) return
     setSaving(true)
+    const tags = [...selectedTags].join(',')
     const ings = ingredients
       .filter(i => i.name.trim())
       .map(i => ({ name: i.name.trim(), quantity: i.quantity ? parseFloat(i.quantity) : null, unit: i.unit }))
@@ -71,8 +84,19 @@ function RecipeForm({ initial, onClose, onSaved }: RecipeFormProps) {
         <input className="form-input" value={name} onChange={e => setName(e.target.value)} placeholder="Recipe name" autoFocus />
       </div>
       <div className="form-group">
-        <label className="form-label">Tags (comma-separated)</label>
-        <input className="form-input" value={tags} onChange={e => setTags(e.target.value)} placeholder="quick, veggie, pasta…" />
+        <label className="form-label">Tags</label>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {ALL_TAGS.map(tag => (
+            <button
+              key={tag}
+              type="button"
+              className={`pill ${selectedTags.has(tag) ? 'pill-active' : 'pill-inactive'}`}
+              onClick={() => toggleTag(tag)}
+            >
+              {tag}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div style={{ marginBottom: 16 }}>
@@ -198,37 +222,19 @@ function RecipeDetail({ recipe, onClose, onDeleted, onEdit }: RecipeDetailProps)
 
 export default function Recipes() {
   const [recipes, setRecipes] = useState<Recipe[]>([])
-  const [allTags, setAllTags] = useState<string[]>([])
   const [search, setSearch] = useState('')
-  const [activeTag, setActiveTag] = useState('')
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<Recipe | null>(null)
   const [editing, setEditing] = useState<Recipe | null | 'new'>(null)
 
   const loadRecipes = useCallback(() => {
     setLoading(true)
-    api.recipes.list(search, activeTag)
-      .then(data => {
-        setRecipes(data)
-        // Collect all unique tags
-        const tags = new Set<string>()
-        data.forEach(r => r.tags.split(',').map(t => t.trim()).filter(Boolean).forEach(t => tags.add(t)))
-        setAllTags([...tags].sort())
-        setLoading(false)
-      })
+    api.recipes.list(search)
+      .then(data => { setRecipes(data); setLoading(false) })
       .catch(() => setLoading(false))
-  }, [search, activeTag])
+  }, [search])
 
   useEffect(() => { loadRecipes() }, [loadRecipes])
-
-  // Also load all tags on mount (regardless of search/filter)
-  useEffect(() => {
-    api.recipes.list().then(data => {
-      const tags = new Set<string>()
-      data.forEach(r => r.tags.split(',').map(t => t.trim()).filter(Boolean).forEach(t => tags.add(t)))
-      setAllTags([...tags].sort())
-    }).catch(() => {})
-  }, [])
 
   return (
     <div>
@@ -255,23 +261,6 @@ export default function Recipes() {
           />
         </div>
 
-        <div style={{ display: 'flex', gap: 6, marginTop: 10, overflowX: 'auto', paddingBottom: 2 }}>
-          <button
-            className={`pill ${activeTag === '' ? 'pill-active' : 'pill-inactive'}`}
-            onClick={() => setActiveTag('')}
-          >
-            All
-          </button>
-          {allTags.map(tag => (
-            <button
-              key={tag}
-              className={`pill ${activeTag === tag ? 'pill-active' : 'pill-inactive'}`}
-              onClick={() => setActiveTag(activeTag === tag ? '' : tag)}
-            >
-              {tag}
-            </button>
-          ))}
-        </div>
       </div>
 
       <div style={{ padding: '16px 20px' }}>
@@ -285,7 +274,7 @@ export default function Recipes() {
           <div className="loading">Loading…</div>
         ) : recipes.length === 0 ? (
           <div className="empty-state">
-            {search || activeTag ? 'No matching recipes' : 'No recipes yet. Add one!'}
+            {search ? 'No matching recipes' : 'No recipes yet. Add one!'}
           </div>
         ) : (
           recipes.map(recipe => {

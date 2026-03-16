@@ -248,8 +248,12 @@ export function formatDateRange(monday: Date): string {
   return `${fmt(monday)} – ${fmt(sunday)}`
 }
 
+export function dateISO(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 export function todayISO(): string {
-  return new Date().toISOString().slice(0, 10)
+  return dateISO(new Date())
 }
 
 export function greeting(): string {

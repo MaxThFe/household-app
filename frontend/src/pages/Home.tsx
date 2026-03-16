@@ -1,10 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { api, CalendarEvent, Meal, ShoppingItem, toISOWeek, todayISO, greeting } from '../api/client'
-
-function ShiftDot({ color }: { color: string }) {
-  return <div className="shift-dot" style={{ background: color }} />
-}
+import { api, CalendarEvent, Meal, ShoppingItem, toISOWeek, todayISO, dateISO, greeting } from '../api/client'
 
 export default function Home() {
   const navigate = useNavigate()
@@ -36,7 +32,7 @@ export default function Home() {
   const upcoming = Array.from({ length: 3 }, (_, i) => {
     const d = new Date(today)
     d.setDate(d.getDate() + i + 1)
-    const date = d.toISOString().slice(0, 10)
+    const date = dateISO(d)
     const meal = meals.find(m => m.date === date)
     const shift = events.find(e => e.date === date && e.source === 'ics')
     return { date, meal, shift, day: d.toLocaleDateString('en-GB', { weekday: 'short' }) }
@@ -63,8 +59,7 @@ export default function Home() {
         {todayShift && (
           <div style={{ background: '#FFF8F0', border: '0.5px solid #F0E0CC', borderRadius: 12, padding: '14px 16px', marginBottom: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-              <ShiftDot color={todayShift.color} />
-              <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)' }}>Her shift today</span>
+              <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)' }}>Margaux's shift</span>
             </div>
             <p style={{ fontSize: 15, fontWeight: 500 }}>{todayShift.title}</p>
             {(todayShift.start_time || todayShift.end_time) && (
@@ -134,7 +129,7 @@ export default function Home() {
                 <p style={{ fontSize: 14, fontWeight: meal ? 500 : 400, color: meal ? 'var(--text-primary)' : 'var(--text-muted)', margin: '2px 0' }}>
                   {meal ? (meal.recipe_name ?? meal.custom_name) : 'No plan'}
                 </p>
-                {shift && <div className="shift-dot" style={{ background: shift.color, margin: '4px auto 0', width: 8, height: 8 }} />}
+                {shift && <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>{shift.notes || 'Shift'}</p>}
               </div>
             ))}
           </div>

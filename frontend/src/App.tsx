@@ -62,7 +62,10 @@ const tabs = [
     label: 'Meals',
     icon: (active: boolean) => (
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-        <path d="M6 4h8M5 8h10M4 12h12M6 16h8" stroke={active ? '#4A3F35' : '#A89880'} strokeWidth="1.5" strokeLinecap="round" />
+        {/* Fork */}
+        <path d="M7 2v3M9 2v3M7 5a1 1 0 002 0M8 6v9" stroke={active ? '#4A3F35' : '#A89880'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        {/* Knife */}
+        <path d="M13 2c0 0 2 1.5 2 4h-2v9" stroke={active ? '#4A3F35' : '#A89880'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     ),
   },
@@ -80,8 +83,9 @@ const tabs = [
     label: 'Recipes',
     icon: (active: boolean) => (
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-        <circle cx="10" cy="8" r="4" stroke={active ? '#4A3F35' : '#A89880'} strokeWidth="1.5" />
-        <path d="M4 17a6 6 0 0112 0" stroke={active ? '#4A3F35' : '#A89880'} strokeWidth="1.5" strokeLinecap="round" />
+        {/* Open book */}
+        <path d="M10 16V5C10 5 8 3 4 3v13c4 0 6 2 6 2" stroke={active ? '#4A3F35' : '#A89880'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M10 16V5c0 0 2-2 6-2v13c-4 0-6 2-6 2" stroke={active ? '#4A3F35' : '#A89880'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     ),
   },

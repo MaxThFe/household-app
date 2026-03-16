@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
-import { api, CalendarEvent, toISOWeek, offsetWeek, getMondayFromWeek, formatDateRange, todayISO } from '../api/client'
+import { api, CalendarEvent, toISOWeek, offsetWeek, getMondayFromWeek, formatDateRange, todayISO, dateISO } from '../api/client'
+import { useAuth } from '../App'
 import { Modal } from '../components/Modal'
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -94,18 +95,21 @@ function AddEventModal({ initialDate, onClose, onSaved }: AddEventModalProps) {
 // --- Main calendar page ---
 
 export default function CalendarPage() {
+  const { config } = useAuth()
   const [week, setWeek] = useState(toISOWeek(new Date()))
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [showAddModal, setShowAddModal] = useState(false)
   const [addDate, setAddDate] = useState<string | undefined>()
 
   const today = todayISO()
+  const currentWeek = toISOWeek(new Date())
+  const isCurrentWeek = week === currentWeek
   const monday = getMondayFromWeek(week)
   const sunday = new Date(monday)
   sunday.setDate(monday.getDate() + 6)
 
-  const startStr = monday.toISOString().slice(0, 10)
-  const endStr = sunday.toISOString().slice(0, 10)
+  const startStr = dateISO(monday)
+  const endStr = dateISO(sunday)
 
   const loadEvents = useCallback(() => {
     api.calendar.list({ start: startStr, end: endStr })
@@ -118,7 +122,7 @@ export default function CalendarPage() {
   const days = DAYS.map((day, i) => {
     const d = new Date(monday)
     d.setDate(monday.getDate() + i)
-    const date = d.toISOString().slice(0, 10)
+    const date = dateISO(d)
     return {
       date,
       day,
@@ -140,6 +144,9 @@ export default function CalendarPage() {
             </p>
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {!isCurrentWeek && (
+              <button className="pill pill-inactive" onClick={() => setWeek(currentWeek)}>Today</button>
+            )}
             <button className="nav-btn" onClick={() => setWeek(w => offsetWeek(w, -1))}>
               <ChevronLeft />
             </button>
@@ -201,10 +208,15 @@ export default function CalendarPage() {
         </div>
 
         {/* Legend */}
-        <div style={{ display: 'flex', gap: 12, marginTop: 14, flexWrap: 'wrap' }}>
-          <LegendItem color="#1D9E75" label="Early shift" />
-          <LegendItem color="#D85A30" label="Late shift" />
-          <LegendItem color="#534AB7" label="Night / event" />
+        <div style={{ display: 'flex', gap: 16, marginTop: 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#D85A30' }} />
+            <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{config?.user2_name ?? 'Margaux'}</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#534AB7' }} />
+            <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{config?.user1_name ?? 'Max'}</span>
+          </div>
         </div>
       </div>
 
@@ -219,14 +231,6 @@ export default function CalendarPage() {
   )
 }
 
-function LegendItem({ color, label }: { color: string; label: string }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-      <div style={{ width: 8, height: 8, borderRadius: '50%', background: color }} />
-      <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{label}</span>
-    </div>
-  )
-}
 
 function ChevronLeft() {
   return (

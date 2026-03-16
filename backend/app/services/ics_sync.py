@@ -10,19 +10,18 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-SHIFT_COLORS = {
-    "early": "#1D9E75",
-    "late": "#D85A30",
-    "night": "#534AB7",
-}
+MARGAUX_COLOR = "#D85A30"
 
 
-def assign_shift_color(title: str) -> str:
-    lower = title.lower()
-    for keyword, color in SHIFT_COLORS.items():
-        if keyword in lower:
-            return color
-    return "#534AB7"
+def shift_type(start_time: str | None) -> str:
+    """Return shift type label based on start time."""
+    if not start_time:
+        return "Shift"
+    if start_time < "12:00":
+        return "Early shift"
+    if start_time < "17:00":
+        return "Late shift"
+    return "Night shift"
 
 
 async def sync_ics(db: aiosqlite.Connection) -> None:
@@ -46,8 +45,6 @@ async def sync_ics(db: aiosqlite.Connection) -> None:
             continue
 
         seen_uids.add(uid)
-        title = str(component.get("SUMMARY", ""))
-        color = assign_shift_color(title)
         notes = str(component.get("DESCRIPTION", ""))
         dtstart = component.get("DTSTART").dt
         dtend = component.get("DTEND")
@@ -75,6 +72,8 @@ async def sync_ics(db: aiosqlite.Connection) -> None:
             start_time_str = None
             end_time_str = None
 
+        stype = shift_type(start_time_str)
+
         await db.execute(
             """
             INSERT INTO calendar_events (date, title, start_time, end_time, all_day, source, source_uid, color, notes)
@@ -88,7 +87,7 @@ async def sync_ics(db: aiosqlite.Connection) -> None:
                 color=excluded.color,
                 notes=excluded.notes
             """,
-            (date_str, title, start_time_str, end_time_str, all_day, uid, color, notes),
+            (date_str, stype, start_time_str, end_time_str, all_day, uid, MARGAUX_COLOR, ""),
         )
 
     if seen_uids:

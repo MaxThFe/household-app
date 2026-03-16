@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { api, Meal, Recipe, toISOWeek, offsetWeek, getMondayFromWeek, formatDateRange, todayISO } from '../api/client'
+import { api, Meal, Recipe, toISOWeek, offsetWeek, getMondayFromWeek, formatDateRange, todayISO, dateISO } from '../api/client'
 import { Modal } from '../components/Modal'
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -254,12 +254,14 @@ export default function Meals() {
   const [selectedEntry, setSelectedEntry] = useState<DayEntry | null>(null)
 
   const today = todayISO()
+  const currentWeek = toISOWeek(new Date())
+  const isCurrentWeek = week === currentWeek
   const monday = getMondayFromWeek(week)
 
   const days: DayEntry[] = DAYS.map((day, i) => {
     const d = new Date(monday)
     d.setDate(monday.getDate() + i)
-    const date = d.toISOString().slice(0, 10)
+    const date = dateISO(d)
     return {
       date,
       day,
@@ -281,8 +283,19 @@ export default function Meals() {
       {/* Header */}
       <div className="page-header">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <p style={{ fontSize: 22, fontWeight: 500 }}>This week</p>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div>
+            {isCurrentWeek
+              ? <p style={{ fontSize: 22, fontWeight: 500 }}>This week</p>
+              : <p style={{ fontSize: 22, fontWeight: 500 }}>{formatDateRange(monday)}</p>
+            }
+            {isCurrentWeek && (
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>{formatDateRange(monday)}</p>
+            )}
+          </div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {!isCurrentWeek && (
+              <button className="pill pill-inactive" onClick={() => setWeek(currentWeek)}>Today</button>
+            )}
             <button className="nav-btn" onClick={() => setWeek(w => offsetWeek(w, -1))}>
               <ChevronLeft />
             </button>
@@ -291,9 +304,6 @@ export default function Meals() {
             </button>
           </div>
         </div>
-        <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 6 }}>
-          {formatDateRange(monday)}
-        </p>
       </div>
 
       <div style={{ padding: '12px 20px' }}>

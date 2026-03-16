@@ -51,6 +51,14 @@ input, textarea {
   font-family: inherit;
 }
 
+/* Hide scrollbars everywhere */
+* {
+  scrollbar-width: none; /* Firefox */
+}
+*::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
+}
+
 /* App shell */
 .app-shell {
   display: flex;
