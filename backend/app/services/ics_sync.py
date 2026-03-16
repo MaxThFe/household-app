@@ -61,6 +61,10 @@ async def sync_ics(db: aiosqlite.Connection) -> None:
                 if isinstance(dtend_val, datetime):
                     if dtend_val.tzinfo is not None:
                         dtend_val = dtend_val.astimezone(utc).replace(tzinfo=None)
+                    duration_minutes = (dtend_val - dtstart).total_seconds() / 60
+                    if duration_minutes < 10:
+                        seen_uids.discard(uid)
+                        continue
                     end_time_str = dtend_val.strftime("%H:%M")
                 else:
                     end_time_str = None
