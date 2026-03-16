@@ -23,8 +23,8 @@ docker run -d \
   --restart unless-stopped \
   -p 8000:8000 \
   -v /home/pi/hometogether/data:/app/data \
-  -e HT_USER1_NAME=Max \
-  -e HT_USER2_NAME=Margaux \
+  -e HT_USER1_NAME=UserName1 \
+  -e HT_USER2_NAME=UserName2 \
   -e HT_ICS_URL=<your-ics-url> \
   -e HT_ICS_SYNC_INTERVAL_MINUTES=30 \
   ghcr.io/maxthfe/household-app/backend:latest
