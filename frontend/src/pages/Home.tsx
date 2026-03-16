@@ -129,7 +129,7 @@ export default function Home() {
                 <p style={{ fontSize: 14, fontWeight: meal ? 500 : 400, color: meal ? 'var(--text-primary)' : 'var(--text-muted)', margin: '2px 0' }}>
                   {meal ? (meal.recipe_name ?? meal.custom_name) : 'No plan'}
                 </p>
-                {shift && <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>{shift.notes || 'Shift'}</p>}
+                {shift && <p style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>{shift.title || 'Shift'}</p>}
               </div>
             ))}
           </div>

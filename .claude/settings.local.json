@@ -9,7 +9,12 @@
       "Bash(git reset:*)",
       "Bash(git commit:*)",
       "Bash(sleep:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(git branch:*)",
+      "Bash(git push:*)",
+      "Bash(gh repo:*)",
+      "Bash(git pull:*)",
+      "Bash(git stash:*)"
     ]
   }
 }
