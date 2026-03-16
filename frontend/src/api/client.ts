@@ -1,25 +1,25 @@
 const BASE = '/api/v1'
 
-export function getPin(): string {
-  return localStorage.getItem('ht_pin') ?? ''
+export function getUser(): string {
+  return localStorage.getItem('ht_user') ?? ''
 }
 
-export function setPin(pin: string): void {
-  localStorage.setItem('ht_pin', pin)
+export function setUser(name: string): void {
+  localStorage.setItem('ht_user', name)
 }
 
-export function clearPin(): void {
-  localStorage.removeItem('ht_pin')
+export function clearUser(): void {
+  localStorage.removeItem('ht_user')
 }
 
 function authHeaders(): Record<string, string> {
-  return { 'X-User-Pin': getPin(), 'Content-Type': 'application/json' }
+  return { 'X-User': getUser(), 'Content-Type': 'application/json' }
 }
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(url, options)
   if (res.status === 401) {
-    clearPin()
+    clearUser()
     window.dispatchEvent(new Event('ht:unauthorized'))
     throw new Error('Unauthorized')
   }

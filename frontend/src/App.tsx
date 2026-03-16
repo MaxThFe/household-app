@@ -1,6 +1,6 @@
 import { useState, useEffect, createContext, useContext, useCallback } from 'react'
 import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom'
-import { api, AppConfig, getPin, setPin } from './api/client'
+import { api, AppConfig, getUser, setUser } from './api/client'
 import Home from './pages/Home'
 import Meals from './pages/Meals'
 import CalendarPage from './pages/Calendar'
@@ -10,74 +10,36 @@ import Shopping from './pages/Shopping'
 // --- Auth context ---
 
 interface AuthCtx {
-  pin: string
+  user: string
   config: AppConfig | null
-  logout: () => void
 }
 
-const AuthContext = createContext<AuthCtx>({ pin: '', config: null, logout: () => {} })
+const AuthContext = createContext<AuthCtx>({ user: '', config: null })
 export const useAuth = () => useContext(AuthContext)
 
-// --- PIN screen ---
+// --- User select screen ---
 
-function PinScreen({ onAuth }: { onAuth: (pin: string) => void }) {
+function UserSelect({ onSelect }: { onSelect: (name: string) => void }) {
   const [config, setConfig] = useState<AppConfig | null>(null)
-  const [selected, setSelected] = useState<1 | 2 | null>(null)
-  const [pin, setPinInput] = useState('')
-  const [error, setError] = useState('')
 
   useEffect(() => {
     api.config.get().then(setConfig).catch(() => {})
   }, [])
 
-  function handleSubmit() {
-    if (!pin.trim()) return
-    setError('')
-    onAuth(pin.trim())
-  }
+  const names = config ? [config.user1_name, config.user2_name] : ['Max', 'Margaux']
 
   return (
     <div className="pin-screen">
       <div style={{ fontSize: 40, marginBottom: 16 }}>🏠</div>
       <h1>HomeTogether</h1>
-      <p>Enter your PIN to continue</p>
-
-      {config && (
-        <div className="user-buttons">
-          <button
-            className={`user-btn${selected === 1 ? ' selected' : ''}`}
-            onClick={() => setSelected(1)}
-          >
-            {config.user1_name}
+      <p>Who are you?</p>
+      <div className="user-buttons">
+        {names.map(name => (
+          <button key={name} className="user-btn" onClick={() => onSelect(name)}>
+            {name}
           </button>
-          <button
-            className={`user-btn${selected === 2 ? ' selected' : ''}`}
-            onClick={() => setSelected(2)}
-          >
-            {config.user2_name}
-          </button>
-        </div>
-      )}
-
-      {selected && (
-        <>
-          <input
-            className="form-input"
-            type="password"
-            inputMode="numeric"
-            placeholder="PIN"
-            value={pin}
-            onChange={e => setPinInput(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') handleSubmit() }}
-            autoFocus
-            style={{ marginBottom: 12, textAlign: 'center', letterSpacing: 8, fontSize: 20 }}
-          />
-          {error && <p style={{ color: 'var(--accent-red)', fontSize: 13, marginBottom: 12 }}>{error}</p>}
-          <button className="btn-primary" style={{ width: '100%' }} onClick={handleSubmit}>
-            Continue
-          </button>
-        </>
-      )}
+        ))}
+      </div>
     </div>
   )
 }
@@ -179,39 +141,34 @@ function AppShell() {
 // --- Root ---
 
 export default function App() {
-  const [pin, setPinState] = useState(getPin)
+  const [user, setUserState] = useState(getUser)
   const [config, setConfig] = useState<AppConfig | null>(null)
 
   useEffect(() => {
     api.config.get().then(setConfig).catch(() => {})
   }, [])
 
-  const handleAuth = useCallback((p: string) => {
-    setPin(p)
-    setPinState(p)
-  }, [])
-
-  const logout = useCallback(() => {
-    localStorage.removeItem('ht_pin')
-    setPinState('')
+  const handleSelect = useCallback((name: string) => {
+    setUser(name)
+    setUserState(name)
   }, [])
 
   useEffect(() => {
-    const handler = () => { localStorage.removeItem('ht_pin'); setPinState('') }
+    const handler = () => { localStorage.removeItem('ht_user'); setUserState('') }
     window.addEventListener('ht:unauthorized', handler)
     return () => window.removeEventListener('ht:unauthorized', handler)
   }, [])
 
-  if (!pin) {
+  if (!user) {
     return (
       <div className="app-shell">
-        <PinScreen onAuth={handleAuth} />
+        <UserSelect onSelect={handleSelect} />
       </div>
     )
   }
 
   return (
-    <AuthContext.Provider value={{ pin, config, logout }}>
+    <AuthContext.Provider value={{ user, config }}>
       <BrowserRouter>
         <AppShell />
       </BrowserRouter>
