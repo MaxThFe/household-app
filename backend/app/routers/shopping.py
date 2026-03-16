@@ -72,9 +72,13 @@ async def delete_checked_items(
 @router.delete("/{item_id}", status_code=204)
 async def delete_shopping_item(item_id: int, db=Depends(get_db), _=Depends(require_auth)):
     async with db.execute(
-        "SELECT id FROM shopping_items WHERE id = ?", (item_id,)
+        "SELECT name, unit, store FROM shopping_items WHERE id = ?", (item_id,)
     ) as cursor:
-        if not await cursor.fetchone():
-            raise HTTPException(status_code=404, detail="Item not found")
-    await db.execute("DELETE FROM shopping_items WHERE id = ?", (item_id,))
+        row = await cursor.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Item not found")
+    await db.execute(
+        "DELETE FROM shopping_items WHERE name = ? AND unit = ? AND store = ?",
+        (row["name"], row["unit"], row["store"]),
+    )
     await db.commit()
