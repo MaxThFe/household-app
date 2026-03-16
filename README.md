@@ -69,4 +69,3 @@ Runs at `http://localhost:5173`.
 
 On push to `main` (backend files only), a Docker image is built for `linux/arm64` and pushed to the GitHub Container Registry (`ghcr.io`).
 
-To change the default branch on GitHub: **Settings → Branches → change default to `main`**.
