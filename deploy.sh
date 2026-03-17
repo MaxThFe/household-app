@@ -3,9 +3,15 @@ set -euo pipefail
 
 cd "$(dirname "$0")"
 
-pull_output=$(docker compose pull 2>&1)
+# Get image IDs for the tags before pulling
+before=$(docker compose config --images | xargs -I{} docker inspect --format '{{.Id}}' {} 2>/dev/null | sort)
 
-if echo "$pull_output" | grep -q "Downloaded newer image"; then
+docker compose pull --quiet 2>&1
+
+# Get image IDs for the tags after pulling
+after=$(docker compose config --images | xargs -I{} docker inspect --format '{{.Id}}' {} 2>/dev/null | sort)
+
+if [ "$before" != "$after" ]; then
     echo "$(date): New images found, restarting containers..."
     docker compose up -d
     docker image prune -f
