@@ -17,13 +17,16 @@ def _parse_week(week_str: str) -> tuple[str, str]:
 
 
 def _compute_attendants(meal_date: str, shift_rows: list) -> int:
-    """Return 1 if any ICS event on that date is an evening/late shift, else 2."""
+    """Return 1 if any ICS event overlaps the dinner window (18:00–21:00), else 2."""
     for row in shift_rows:
         if row["date"] != meal_date:
             continue
-        end_time = row["end_time"] or ""
         start_time = row["start_time"] or ""
-        if end_time > "18:00" or start_time >= "15:00":
+        end_time = row["end_time"] or ""
+        if not start_time:
+            continue
+        end = end_time if end_time else "23:59"
+        if start_time < "21:00" and end > "18:00":
             return 1
     return 2
 
