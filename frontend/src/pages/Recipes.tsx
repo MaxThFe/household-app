@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { api, Recipe, Ingredient } from '../api/client'
 import { Modal } from '../components/Modal'
 
@@ -27,6 +27,15 @@ function RecipeForm({ initial, onClose, onSaved }: RecipeFormProps) {
     initial?.ingredients.map(i => ({ name: i.name, quantity: i.quantity?.toString() ?? '1', unit: i.unit })) ?? [{ name: '', quantity: '1', unit: '' }]
   )
   const [saving, setSaving] = useState(false)
+  const [focusLastIngredient, setFocusLastIngredient] = useState(false)
+  const ingredientNameRefs = useRef<(HTMLInputElement | null)[]>([])
+
+  useEffect(() => {
+    if (focusLastIngredient) {
+      ingredientNameRefs.current[ingredients.length - 1]?.focus()
+      setFocusLastIngredient(false)
+    }
+  }, [focusLastIngredient, ingredients.length])
 
   function toggleTag(tag: string) {
     setSelectedTags(prev => {
@@ -38,6 +47,7 @@ function RecipeForm({ initial, onClose, onSaved }: RecipeFormProps) {
 
   function addIngredient() {
     setIngredients(prev => [...prev, { name: '', quantity: '1', unit: '' }])
+    setFocusLastIngredient(true)
   }
 
   function updateIngredient(i: number, field: keyof IngredientDraft, val: string) {
@@ -113,7 +123,9 @@ function RecipeForm({ initial, onClose, onSaved }: RecipeFormProps) {
               style={{ flex: 2 }}
               placeholder="Name"
               value={ing.name}
+              ref={el => { ingredientNameRefs.current[i] = el }}
               onChange={e => updateIngredient(i, 'name', e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addIngredient() } }}
             />
             <input
               className="form-input"
@@ -129,6 +141,7 @@ function RecipeForm({ initial, onClose, onSaved }: RecipeFormProps) {
               placeholder="Unit"
               value={ing.unit}
               onChange={e => updateIngredient(i, 'unit', e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addIngredient() } }}
             />
             <button onClick={() => removeIngredient(i)} style={{ color: 'var(--accent-red)', fontSize: 18, padding: '0 4px' }}>×</button>
           </div>

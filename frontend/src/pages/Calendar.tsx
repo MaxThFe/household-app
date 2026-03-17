@@ -5,9 +5,14 @@ import { Modal } from '../components/Modal'
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 
-function EventRow({ event, dark }: { event: CalendarEvent; dark?: boolean }) {
+function EventRow({ event, dark, onClick }: { event: CalendarEvent; dark?: boolean; onClick?: () => void }) {
+  const isManual = event.source === 'manual'
   return (
-    <div className="calendar-event-row">
+    <div
+      className="calendar-event-row"
+      onClick={isManual ? onClick : undefined}
+      style={isManual && onClick ? { cursor: 'pointer' } : undefined}
+    >
       <div className="shift-dot-sm" style={{ background: event.color }} />
       <p style={{ fontSize: 13, color: dark ? 'var(--text-on-dark)' : 'var(--text-primary)' }}>
         {event.title}
@@ -21,32 +26,39 @@ function EventRow({ event, dark }: { event: CalendarEvent; dark?: boolean }) {
   )
 }
 
-// --- Add event modal ---
-interface AddEventModalProps {
+// --- Event modal (add + edit) ---
+interface EventModalProps {
+  event?: CalendarEvent
   initialDate?: string
   onClose: () => void
   onSaved: () => void
 }
 
-function AddEventModal({ initialDate, onClose, onSaved }: AddEventModalProps) {
-  const [title, setTitle] = useState('')
-  const [date, setDate] = useState(initialDate ?? todayISO())
-  const [startTime, setStartTime] = useState('')
-  const [endTime, setEndTime] = useState('')
-  const [allDay, setAllDay] = useState(false)
+function EventModal({ event, initialDate, onClose, onSaved }: EventModalProps) {
+  const [title, setTitle] = useState(event?.title ?? '')
+  const [date, setDate] = useState(event?.date ?? initialDate ?? todayISO())
+  const [startTime, setStartTime] = useState(event?.start_time ?? '')
+  const [endTime, setEndTime] = useState(event?.end_time ?? '')
+  const [allDay, setAllDay] = useState(event ? event.all_day === 1 : false)
   const [saving, setSaving] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   async function handleSave() {
     if (!title.trim()) return
     setSaving(true)
+    const payload = {
+      date,
+      title: title.trim(),
+      start_time: allDay ? undefined : startTime || undefined,
+      end_time: allDay ? undefined : endTime || undefined,
+      all_day: allDay ? 1 : 0,
+    }
     try {
-      await api.calendar.create({
-        date,
-        title: title.trim(),
-        start_time: allDay ? undefined : startTime || undefined,
-        end_time: allDay ? undefined : endTime || undefined,
-        all_day: allDay ? 1 : 0,
-      })
+      if (event) {
+        await api.calendar.update(event.id, payload)
+      } else {
+        await api.calendar.create(payload)
+      }
       onSaved()
       onClose()
     } catch {
@@ -54,14 +66,31 @@ function AddEventModal({ initialDate, onClose, onSaved }: AddEventModalProps) {
     }
   }
 
+  async function handleDelete() {
+    if (!event || !confirm(`Delete "${event.title}"?`)) return
+    setDeleting(true)
+    try {
+      await api.calendar.delete(event.id)
+      onSaved()
+      onClose()
+    } catch {
+      setDeleting(false)
+    }
+  }
+
   return (
     <Modal
-      title="Add event"
+      title={event ? 'Edit event' : 'Add event'}
       onClose={onClose}
       footer={
-        <button className="btn-primary" onClick={handleSave} disabled={saving || !title.trim()}>
-          {saving ? 'Saving…' : 'Add event'}
-        </button>
+        <>
+          {event && (
+            <button className="btn-danger" onClick={handleDelete} disabled={deleting}>Delete</button>
+          )}
+          <button className="btn-primary" onClick={handleSave} disabled={saving || !title.trim()}>
+            {saving ? 'Saving…' : event ? 'Save' : 'Add event'}
+          </button>
+        </>
       }
     >
       <div className="form-group">
@@ -100,6 +129,7 @@ export default function CalendarPage() {
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [showAddModal, setShowAddModal] = useState(false)
   const [addDate, setAddDate] = useState<string | undefined>()
+  const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null)
 
   const today = todayISO()
   const currentWeek = toISOWeek(new Date())
@@ -169,7 +199,7 @@ export default function CalendarPage() {
                   </div>
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
                     {dayEvents.length > 0 ? (
-                      dayEvents.map(e => <EventRow key={e.id} event={e} dark />)
+                      dayEvents.map(e => <EventRow key={e.id} event={e} dark onClick={() => setEditingEvent(e)} />)
                     ) : (
                       <p style={{ fontSize: 13, color: 'var(--text-on-dark-muted)', fontStyle: 'italic' }}>No events</p>
                     )}
@@ -188,7 +218,7 @@ export default function CalendarPage() {
                 </div>
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
                   {dayEvents.length > 0 ? (
-                    dayEvents.map(e => <EventRow key={e.id} event={e} />)
+                    dayEvents.map(e => <EventRow key={e.id} event={e} onClick={() => setEditingEvent(e)} />)
                   ) : (
                     <p style={{ fontSize: 13, color: 'var(--text-muted)', fontStyle: 'italic' }}>No events</p>
                   )}
@@ -221,9 +251,17 @@ export default function CalendarPage() {
       </div>
 
       {showAddModal && (
-        <AddEventModal
+        <EventModal
           initialDate={addDate}
           onClose={() => setShowAddModal(false)}
+          onSaved={loadEvents}
+        />
+      )}
+
+      {editingEvent && (
+        <EventModal
+          event={editingEvent}
+          onClose={() => setEditingEvent(null)}
           onSaved={loadEvents}
         />
       )}
