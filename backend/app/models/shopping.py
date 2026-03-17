@@ -8,6 +8,13 @@ class ShoppingItemCreate(BaseModel):
     store: str = ""
 
 
+class ShoppingItemUpdate(BaseModel):
+    name: str | None = None
+    quantity: float | None = None
+    unit: str | None = None
+    store: str | None = None
+
+
 class ShoppingItemResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

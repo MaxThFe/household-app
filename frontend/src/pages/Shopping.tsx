@@ -99,14 +99,112 @@ function AddItemModal({ onClose, onSaved, existingCategories }: AddItemModalProp
   )
 }
 
+// --- Edit item modal ---
+interface EditItemModalProps {
+  item: ShoppingItem
+  existingCategories: string[]
+  onClose: () => void
+  onSaved: () => void
+}
+
+function EditItemModal({ item, existingCategories, onClose, onSaved }: EditItemModalProps) {
+  const [name, setName] = useState(item.name)
+  const [quantity, setQuantity] = useState(item.quantity != null ? String(item.quantity) : '')
+  const [unit, setUnit] = useState(item.unit)
+  const [store, setStore] = useState(item.store || 'supermarket')
+  const defaultCategories = ['supermarket', 'household']
+  const customCategories = existingCategories.filter(c => !defaultCategories.includes(c))
+  const allPills = [...defaultCategories, ...customCategories]
+  const [customStore, setCustomStore] = useState(!allPills.includes(item.store) && item.store ? item.store : '')
+  const [showCustomInput, setShowCustomInput] = useState(!allPills.includes(store))
+  const [saving, setSaving] = useState(false)
+
+  async function handleSave() {
+    if (!name.trim()) return
+    const finalStore = showCustomInput ? customStore.trim().toLowerCase() : store
+    if (!finalStore) return
+    setSaving(true)
+    try {
+      await api.shopping.update(item.id, {
+        name: name.trim(),
+        quantity: quantity ? parseFloat(quantity) : null,
+        unit: unit || '',
+        store: finalStore,
+      })
+      onSaved()
+      onClose()
+    } catch {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Modal
+      title="Edit item"
+      onClose={onClose}
+      footer={
+        <button className="btn-primary" onClick={handleSave} disabled={saving || !name.trim() || (showCustomInput && !customStore.trim())}>
+          {saving ? 'Saving…' : 'Save'}
+        </button>
+      }
+    >
+      <div className="form-group">
+        <label className="form-label">Item name</label>
+        <input className="form-input" value={name} onChange={e => setName(e.target.value)} autoFocus />
+      </div>
+      <div style={{ display: 'flex', gap: 12 }}>
+        <div className="form-group" style={{ flex: 1 }}>
+          <label className="form-label">Quantity</label>
+          <input className="form-input" type="number" value={quantity} onChange={e => setQuantity(e.target.value)} placeholder="–" />
+        </div>
+        <div className="form-group" style={{ flex: 1 }}>
+          <label className="form-label">Unit</label>
+          <input className="form-input" value={unit} onChange={e => setUnit(e.target.value)} placeholder="g, ml, pcs…" />
+        </div>
+      </div>
+      <div className="form-group">
+        <label className="form-label">Category</label>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {allPills.map(s => (
+            <button
+              key={s}
+              className={`pill ${!showCustomInput && store === s ? 'pill-active' : 'pill-inactive'}`}
+              onClick={() => { setStore(s); setShowCustomInput(false) }}
+            >
+              {s.charAt(0).toUpperCase() + s.slice(1)}
+            </button>
+          ))}
+          <button
+            className={`pill ${showCustomInput ? 'pill-active' : 'pill-inactive'}`}
+            onClick={() => setShowCustomInput(true)}
+          >
+            + Custom
+          </button>
+        </div>
+        {showCustomInput && (
+          <input
+            className="form-input"
+            style={{ marginTop: 8 }}
+            value={customStore}
+            onChange={e => setCustomStore(e.target.value)}
+            placeholder="Category name"
+            autoFocus
+          />
+        )}
+      </div>
+    </Modal>
+  )
+}
+
 // --- Shopping item row ---
 interface ShoppingRowProps {
   item: ShoppingItem
   onCheck: (item: ShoppingItem) => void
+  onEdit: (item: ShoppingItem) => void
   pendingIds: Set<number>
 }
 
-function ShoppingRow({ item, onCheck, pendingIds }: ShoppingRowProps) {
+function ShoppingRow({ item, onCheck, onEdit, pendingIds }: ShoppingRowProps) {
   const isPending = pendingIds.has(item.id)
 
   return (
@@ -117,7 +215,7 @@ function ShoppingRow({ item, onCheck, pendingIds }: ShoppingRowProps) {
         checked={isPending}
         onChange={() => onCheck(item)}
       />
-      <div style={{ flex: 1 }}>
+      <div style={{ flex: 1, cursor: 'pointer' }} onClick={() => onEdit(item)}>
         <p style={{ fontSize: 14, color: 'var(--text-primary)' }}>{item.name}</p>
         {item.source_names && (
           <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>{item.source_names}</p>
@@ -127,7 +225,7 @@ function ShoppingRow({ item, onCheck, pendingIds }: ShoppingRowProps) {
         )}
       </div>
       {item.quantity != null && (
-        <p style={{ fontSize: 12, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', whiteSpace: 'nowrap', cursor: 'pointer' }} onClick={() => onEdit(item)}>
           {item.quantity}{item.unit ? ` ${item.unit}` : ''}
         </p>
       )}
@@ -136,7 +234,7 @@ function ShoppingRow({ item, onCheck, pendingIds }: ShoppingRowProps) {
 }
 
 // --- Section ---
-function Section({ title, items, onCheck, pendingIds }: { title: string; items: ShoppingItem[]; onCheck: (item: ShoppingItem) => void; pendingIds: Set<number> }) {
+function Section({ title, items, onCheck, onEdit, pendingIds }: { title: string; items: ShoppingItem[]; onCheck: (item: ShoppingItem) => void; onEdit: (item: ShoppingItem) => void; pendingIds: Set<number> }) {
   if (items.length === 0) return null
   return (
     <div className="shopping-group">
@@ -146,7 +244,7 @@ function Section({ title, items, onCheck, pendingIds }: { title: string; items: 
       </div>
       <div className="shopping-list-card">
         {items.map(item => (
-          <ShoppingRow key={item.id} item={item} onCheck={onCheck} pendingIds={pendingIds} />
+          <ShoppingRow key={item.id} item={item} onCheck={onCheck} onEdit={onEdit} pendingIds={pendingIds} />
         ))}
       </div>
     </div>
@@ -158,6 +256,7 @@ export default function Shopping() {
   const [list, setList] = useState<ShoppingList>({ categories: {} })
   const [loading, setLoading] = useState(true)
   const [showAddModal, setShowAddModal] = useState(false)
+  const [editItem, setEditItem] = useState<ShoppingItem | null>(null)
   const [pendingIds, setPendingIds] = useState<Set<number>>(new Set())
   const [toast, setToast] = useState<{ item: ShoppingItem } | null>(null)
   const pendingTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map())
@@ -243,6 +342,7 @@ export default function Shopping() {
                 title={cat.charAt(0).toUpperCase() + cat.slice(1)}
                 items={items}
                 onCheck={handleCheck}
+                onEdit={setEditItem}
                 pendingIds={pendingIds}
               />
             ))}
@@ -255,6 +355,15 @@ export default function Shopping() {
           onClose={() => setShowAddModal(false)}
           onSaved={loadList}
           existingCategories={Object.keys(list.categories)}
+        />
+      )}
+
+      {editItem && (
+        <EditItemModal
+          item={editItem}
+          existingCategories={Object.keys(list.categories)}
+          onClose={() => setEditItem(null)}
+          onSaved={loadList}
         />
       )}
 

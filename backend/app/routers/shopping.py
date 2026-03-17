@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.core.auth import require_auth
 from app.core.database import get_db
-from app.models.shopping import ShoppingItemCreate, ShoppingItemResponse, ShoppingListResponse
+from app.models.shopping import ShoppingItemCreate, ShoppingItemUpdate, ShoppingItemResponse, ShoppingListResponse
 
 router = APIRouter(prefix="/shopping", tags=["shopping"])
 
@@ -60,6 +60,29 @@ async def add_shopping_item(
     async with db.execute("SELECT * FROM shopping_items WHERE id = ?", (item_id,)) as cur:
         item = await cur.fetchone()
     return ShoppingItemResponse.model_validate(dict(item))
+
+
+@router.patch("/{item_id}", response_model=ShoppingItemResponse)
+async def update_shopping_item(
+    item_id: int, body: ShoppingItemUpdate, db=Depends(get_db), _=Depends(require_auth)
+):
+    async with db.execute("SELECT * FROM shopping_items WHERE id = ?", (item_id,)) as cursor:
+        row = await cursor.fetchone()
+    if not row:
+        raise HTTPException(status_code=404, detail="Item not found")
+
+    updates = body.model_dump(exclude_unset=True)
+    if not updates:
+        return ShoppingItemResponse.model_validate(dict(row))
+
+    set_clause = ", ".join(f"{k} = ?" for k in updates)
+    values = list(updates.values()) + [item_id]
+    await db.execute(f"UPDATE shopping_items SET {set_clause} WHERE id = ?", values)
+    await db.commit()
+
+    async with db.execute("SELECT * FROM shopping_items WHERE id = ?", (item_id,)) as cursor:
+        updated = await cursor.fetchone()
+    return ShoppingItemResponse.model_validate(dict(updated))
 
 
 # IMPORTANT: "checked" route must be registered BEFORE "/{item_id}" to avoid routing conflict

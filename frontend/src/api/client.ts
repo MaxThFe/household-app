@@ -168,6 +168,12 @@ export const api = {
         headers: authHeaders(),
         body: JSON.stringify(data),
       }),
+    update: (id: number, data: { name?: string; quantity?: number | null; unit?: string; store?: string }) =>
+      request<ShoppingItem>(`${BASE}/shopping/${id}`, {
+        method: 'PATCH',
+        headers: authHeaders(),
+        body: JSON.stringify(data),
+      }),
     delete: (id: number) =>
       request<void>(`${BASE}/shopping/${id}`, { method: 'DELETE', headers: authHeaders() }),
     deleteChecked: (ids: number[]) => {
