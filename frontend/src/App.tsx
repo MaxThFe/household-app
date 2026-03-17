@@ -31,7 +31,7 @@ function UserSelect({ onSelect }: { onSelect: (name: string) => void }) {
   return (
     <div className="pin-screen">
       <div style={{ fontSize: 40, marginBottom: 16 }}>🏠</div>
-      <h1>HomeTogether</h1>
+      <h1>OurHome</h1>
       <p>Who are you?</p>
       <div className="user-buttons">
         {names.map(name => (

@@ -8,8 +8,8 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       manifest: {
-        name: 'HomeTogether',
-        short_name: 'HomeTogether',
+        name: 'OurHome',
+        short_name: 'OurHome',
         description: 'Household management for two',
         theme_color: '#F5EDE4',
         background_color: '#FBF9F6',

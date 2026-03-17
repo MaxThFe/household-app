@@ -5,17 +5,17 @@ const FG = '#4A3F35'
 
 function makeSvg(size) {
   const cx = size / 2
-  const pad = size * 0.12
+  const pad = size * 0.19
 
-  const roofTop   = pad
-  const eaveY     = size * 0.46
-  const wallLeft  = size * 0.22
-  const wallRight = size * 0.78
-  const wallBottom = size * 0.88
-  const doorLeft  = cx - size * 0.12
-  const doorRight = cx + size * 0.12
-  const doorTop   = size * 0.62
-  const sw        = size * 0.055
+  const roofTop    = pad
+  const eaveY      = size * 0.48
+  const wallLeft   = size * 0.26
+  const wallRight  = size * 0.74
+  const wallBottom = size * 0.83
+  const doorLeft   = cx - size * 0.11
+  const doorRight  = cx + size * 0.11
+  const doorTop    = size * 0.64
+  const sw         = size * 0.055
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}">
   <rect width="${size}" height="${size}" fill="${BG}"/>
