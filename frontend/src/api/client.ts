@@ -80,8 +80,7 @@ export interface ShoppingItem {
 }
 
 export interface ShoppingList {
-  supermarket: ShoppingItem[]
-  household: ShoppingItem[]
+  categories: Record<string, ShoppingItem[]>
 }
 
 export interface CalendarEvent {

@@ -24,5 +24,4 @@ class ShoppingItemResponse(BaseModel):
 
 
 class ShoppingListResponse(BaseModel):
-    supermarket: list[ShoppingItemResponse] = []
-    household: list[ShoppingItemResponse] = []
+    categories: dict[str, list[ShoppingItemResponse]] = {}

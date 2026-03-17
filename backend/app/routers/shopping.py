@@ -30,16 +30,21 @@ async def get_shopping_list(db=Depends(get_db)):
     ) as cursor:
         rows = await cursor.fetchall()
 
-    supermarket = []
-    household = []
+    categories: dict[str, list[ShoppingItemResponse]] = {}
     for row in rows:
         item = ShoppingItemResponse.model_validate(dict(row))
-        if item.store.lower() in ("", "supermarket"):
-            supermarket.append(item)
-        else:
-            household.append(item)
+        cat = item.store if item.store else "supermarket"
+        categories.setdefault(cat, []).append(item)
 
-    return ShoppingListResponse(supermarket=supermarket, household=household)
+    # Ensure default categories always appear (in order)
+    ordered: dict[str, list[ShoppingItemResponse]] = {}
+    for default_cat in ("supermarket", "household"):
+        ordered[default_cat] = categories.pop(default_cat, [])
+    # Append any custom categories
+    for cat in sorted(categories):
+        ordered[cat] = categories[cat]
+
+    return ShoppingListResponse(categories=ordered)
 
 
 @router.post("", response_model=ShoppingItemResponse, status_code=201)

@@ -20,7 +20,7 @@ export default function Home() {
     ]).then(([m, e, s]) => {
       setMeals(m)
       setEvents(e)
-      setShopping([...s.supermarket, ...s.household])
+      setShopping(Object.values(s.categories).flat())
     }).catch(() => {})
   }, [weekStr, today])
 

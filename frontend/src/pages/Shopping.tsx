@@ -9,22 +9,30 @@ interface AddItemModalProps {
   onSaved: () => void
 }
 
-function AddItemModal({ onClose, onSaved }: AddItemModalProps) {
+function AddItemModal({ onClose, onSaved, existingCategories }: AddItemModalProps & { existingCategories: string[] }) {
   const [name, setName] = useState('')
   const [quantity, setQuantity] = useState('')
   const [unit, setUnit] = useState('')
   const [store, setStore] = useState('supermarket')
+  const [customStore, setCustomStore] = useState('')
+  const [showCustomInput, setShowCustomInput] = useState(false)
   const [saving, setSaving] = useState(false)
+
+  const defaultCategories = ['supermarket', 'household']
+  const customCategories = existingCategories.filter(c => !defaultCategories.includes(c))
+  const allPills = [...defaultCategories, ...customCategories]
 
   async function handleSave() {
     if (!name.trim()) return
+    const finalStore = showCustomInput ? customStore.trim().toLowerCase() : store
+    if (!finalStore) return
     setSaving(true)
     try {
       await api.shopping.add({
         name: name.trim(),
         quantity: quantity ? parseFloat(quantity) : undefined,
         unit: unit || undefined,
-        store,
+        store: finalStore,
       })
       onSaved()
       onClose()
@@ -38,7 +46,7 @@ function AddItemModal({ onClose, onSaved }: AddItemModalProps) {
       title="Add item"
       onClose={onClose}
       footer={
-        <button className="btn-primary" onClick={handleSave} disabled={saving || !name.trim()}>
+        <button className="btn-primary" onClick={handleSave} disabled={saving || !name.trim() || (showCustomInput && !customStore.trim())}>
           {saving ? 'Saving…' : 'Add'}
         </button>
       }
@@ -58,18 +66,34 @@ function AddItemModal({ onClose, onSaved }: AddItemModalProps) {
         </div>
       </div>
       <div className="form-group">
-        <label className="form-label">Store</label>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {['supermarket', 'household'].map(s => (
+        <label className="form-label">Category</label>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {allPills.map(s => (
             <button
               key={s}
-              className={`pill ${store === s ? 'pill-active' : 'pill-inactive'}`}
-              onClick={() => setStore(s)}
+              className={`pill ${!showCustomInput && store === s ? 'pill-active' : 'pill-inactive'}`}
+              onClick={() => { setStore(s); setShowCustomInput(false) }}
             >
               {s.charAt(0).toUpperCase() + s.slice(1)}
             </button>
           ))}
+          <button
+            className={`pill ${showCustomInput ? 'pill-active' : 'pill-inactive'}`}
+            onClick={() => setShowCustomInput(true)}
+          >
+            + Custom
+          </button>
         </div>
+        {showCustomInput && (
+          <input
+            className="form-input"
+            style={{ marginTop: 8 }}
+            value={customStore}
+            onChange={e => setCustomStore(e.target.value)}
+            placeholder="Category name"
+            autoFocus
+          />
+        )}
       </div>
     </Modal>
   )
@@ -131,7 +155,7 @@ function Section({ title, items, onCheck, pendingIds }: { title: string; items: 
 
 // --- Main shopping page ---
 export default function Shopping() {
-  const [list, setList] = useState<ShoppingList>({ supermarket: [], household: [] })
+  const [list, setList] = useState<ShoppingList>({ categories: {} })
   const [loading, setLoading] = useState(true)
   const [showAddModal, setShowAddModal] = useState(false)
   const [pendingIds, setPendingIds] = useState<Set<number>>(new Set())
@@ -181,7 +205,8 @@ export default function Shopping() {
     setToast(null)
   }
 
-  const totalItems = list.supermarket.length + list.household.length
+  const allCategories = Object.entries(list.categories)
+  const totalItems = allCategories.reduce((sum, [, items]) => sum + items.length, 0)
 
   return (
     <div>
@@ -212,18 +237,15 @@ export default function Shopping() {
           </div>
         ) : (
           <>
-            <Section
-              title="Supermarket"
-              items={list.supermarket}
-              onCheck={handleCheck}
-              pendingIds={pendingIds}
-            />
-            <Section
-              title="Household"
-              items={list.household}
-              onCheck={handleCheck}
-              pendingIds={pendingIds}
-            />
+            {allCategories.map(([cat, items]) => (
+              <Section
+                key={cat}
+                title={cat.charAt(0).toUpperCase() + cat.slice(1)}
+                items={items}
+                onCheck={handleCheck}
+                pendingIds={pendingIds}
+              />
+            ))}
           </>
         )}
       </div>
@@ -232,6 +254,7 @@ export default function Shopping() {
         <AddItemModal
           onClose={() => setShowAddModal(false)}
           onSaved={loadList}
+          existingCategories={Object.keys(list.categories)}
         />
       )}
 
