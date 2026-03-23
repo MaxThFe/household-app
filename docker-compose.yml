@@ -1,0 +1,17 @@
+services:
+  backend:
+    image: ghcr.io/maxthfe/household-app/backend:latest
+    build: ./backend
+    restart: unless-stopped
+    env_file: backend/.env
+    volumes:
+      - ./backend/data:/app/data
+
+  frontend:
+    image: ghcr.io/maxthfe/household-app/frontend:latest
+    build: ./frontend
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
