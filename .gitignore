@@ -1,7 +1,9 @@
 backend/.env
 backend/data/*.db
+backend/data/roborock_token.json
 backend/.venv/
 __pycache__/
 *.pyc
 .pytest_cache/
 deploy.log
+.claude/settings.local.json

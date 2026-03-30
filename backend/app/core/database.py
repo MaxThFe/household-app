@@ -55,6 +55,12 @@ CREATE TABLE IF NOT EXISTS calendar_events (
     color TEXT DEFAULT '#534AB7',
     notes TEXT DEFAULT ''
 );
+
+CREATE TABLE IF NOT EXISTS vacuum_overrides (
+    date TEXT PRIMARY KEY,
+    clean_time TEXT,
+    deleted INTEGER DEFAULT 0
+);
 """
 
 
