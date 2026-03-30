@@ -1,5 +1,4 @@
 backend/.env
-.claude/
 backend/data/*.db
 backend/.venv/
 __pycache__/

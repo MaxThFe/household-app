@@ -16,7 +16,7 @@ function EventRow({ event, dark, onClick }: { event: CalendarEvent; dark?: boole
       <div className="shift-dot-sm" style={{ background: event.color }} />
       <p style={{ fontSize: 13, color: dark ? 'var(--text-on-dark)' : 'var(--text-primary)' }}>
         {event.title}
-        {event.source !== 'ics' && event.start_time && (
+        {event.start_time && (
           <span style={{ color: dark ? 'var(--text-on-dark-muted)' : 'var(--text-muted)' }}>
             {' '}{event.start_time}{event.end_time ? ` – ${event.end_time}` : ''}
           </span>

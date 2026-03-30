@@ -22,7 +22,7 @@ async def lifespan(app: FastAPI):
         pass
 
 
-app = FastAPI(title="OurHome API", version="0.1.0", lifespan=lifespan)
+app = FastAPI(title="HomeTogether API", version="0.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

@@ -62,6 +62,11 @@ export default function Home() {
               <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-secondary)' }}>Margaux's shift</span>
             </div>
             <p style={{ fontSize: 15, fontWeight: 500 }}>{todayShift.title}</p>
+            {(todayShift.start_time || todayShift.end_time) && (
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 2 }}>
+                {todayShift.start_time} – {todayShift.end_time}
+              </p>
+            )}
           </div>
         )}
 

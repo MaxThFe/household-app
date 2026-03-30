@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, createContext, useContext, useCallback } from 'react'
+import { useState, useEffect, createContext, useContext, useCallback } from 'react'
 import { BrowserRouter, Routes, Route, NavLink } from 'react-router-dom'
 import { api, AppConfig, getUser, setUser } from './api/client'
 import Home from './pages/Home'
@@ -126,74 +126,9 @@ function TabBar() {
 // --- Main app shell ---
 
 function AppShell() {
-  const screenRef = useRef<HTMLDivElement>(null)
-  const [pullDistance, setPullDistance] = useState(0)
-  const [refreshing, setRefreshing] = useState(false)
-  const touchStartY = useRef(0)
-  const pulling = useRef(false)
-  const threshold = 80
-
-  const onTouchStart = useCallback((e: React.TouchEvent) => {
-    const el = screenRef.current
-    if (el && el.scrollTop <= 0 && !refreshing) {
-      touchStartY.current = e.touches[0].clientY
-      pulling.current = true
-    }
-  }, [refreshing])
-
-  const onTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!pulling.current) return
-    const dy = e.touches[0].clientY - touchStartY.current
-    if (dy > 0) {
-      setPullDistance(Math.min(dy * 0.5, 120))
-    } else {
-      pulling.current = false
-      setPullDistance(0)
-    }
-  }, [])
-
-  const onTouchEnd = useCallback(() => {
-    if (!pulling.current) return
-    pulling.current = false
-    if (pullDistance >= threshold) {
-      setRefreshing(true)
-      setPullDistance(threshold * 0.5)
-      window.location.reload()
-    } else {
-      setPullDistance(0)
-    }
-  }, [pullDistance, threshold])
-
   return (
     <div className="app-shell">
-      <div
-        className="screen"
-        ref={screenRef}
-        onTouchStart={onTouchStart}
-        onTouchMove={onTouchMove}
-        onTouchEnd={onTouchEnd}
-      >
-        <div
-          className="pull-indicator"
-          style={{
-            height: pullDistance,
-            opacity: refreshing ? 1 : Math.min(pullDistance / threshold, 1),
-          }}
-        >
-          <svg
-            className={`pull-spinner${refreshing ? ' spinning' : ''}`}
-            width="22"
-            height="22"
-            viewBox="0 0 22 22"
-            style={{
-              transform: refreshing ? undefined : `rotate(${pullDistance * 3}deg)`,
-            }}
-          >
-            <circle cx="11" cy="11" r="9" fill="none" stroke="var(--text-muted)" strokeWidth="2"
-              strokeDasharray="42" strokeDashoffset={refreshing ? '0' : `${42 - (pullDistance / threshold) * 42}`}
-              strokeLinecap="round" />
-          </svg>
-        </div>
+      <div className="screen">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/meals" element={<Meals />} />

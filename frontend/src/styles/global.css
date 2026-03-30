@@ -78,23 +78,6 @@ input, textarea {
   -webkit-overflow-scrolling: touch;
 }
 
-/* Pull-to-refresh */
-.pull-indicator {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  transition: height 0.2s ease, opacity 0.2s ease;
-}
-
-.pull-spinner.spinning {
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
 /* Page header */
 .page-header {
   padding: 20px 20px 16px;
