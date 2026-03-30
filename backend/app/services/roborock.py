@@ -61,7 +61,9 @@ async def start_cleaning() -> None:
 
         for device in devices:
             if device.v1_properties:
-                await device.v1_properties.command.start()
+                from roborock import RoborockCommand
+
+                await device.v1_properties.command.send(RoborockCommand.APP_START)
                 logger.info("Cleaning started on %s", device.name)
                 break
         else:
