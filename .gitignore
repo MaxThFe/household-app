@@ -5,3 +5,4 @@ __pycache__/
 *.pyc
 .pytest_cache/
 deploy.log
+.claude/settings.local.json

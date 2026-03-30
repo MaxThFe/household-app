@@ -591,3 +591,66 @@ input, textarea {
   color: var(--text-muted);
   flex-shrink: 0;
 }
+
+/* Sidebar */
+.sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 100;
+  animation: fade-in 0.15s ease;
+}
+
+.sidebar-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(360px, 85vw);
+  background: var(--bg-page);
+  z-index: 101;
+  display: flex;
+  flex-direction: column;
+  animation: slide-in-right 0.2s ease;
+}
+
+@keyframes slide-in-right {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 20px 16px;
+  background: var(--bg-header);
+  flex-shrink: 0;
+}
+
+.sidebar-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+}
+
+.vacuum-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 0.5px solid var(--border);
+}
+
+.vacuum-row:last-child {
+  border-bottom: none;
+}
+
+.vacuum-row.deleted {
+  opacity: 0.4;
+}
+
+.vacuum-row.overridden .vacuum-time {
+  color: var(--accent-purple);
+  font-weight: 500;
+}

@@ -6,20 +6,24 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import settings
 from app.core.database import init_db
-from app.routers import calendar, meals, recipes, shopping
+from app.routers import calendar, meals, recipes, shopping, vacuum
 from app.services.ics_sync import run_ics_sync_loop
+from app.services.vacuum_scheduler import run_vacuum_scheduler_loop
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await init_db()
     sync_task = asyncio.create_task(run_ics_sync_loop())
+    vacuum_task = asyncio.create_task(run_vacuum_scheduler_loop())
     yield
     sync_task.cancel()
-    try:
-        await sync_task
-    except asyncio.CancelledError:
-        pass
+    vacuum_task.cancel()
+    for task in (sync_task, vacuum_task):
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
 
 
 app = FastAPI(title="HomeTogether API", version="0.1.0", lifespan=lifespan)
@@ -36,6 +40,7 @@ app.include_router(recipes.router, prefix="/api/v1")
 app.include_router(meals.router, prefix="/api/v1")
 app.include_router(shopping.router, prefix="/api/v1")
 app.include_router(calendar.router, prefix="/api/v1")
+app.include_router(vacuum.router, prefix="/api/v1")
 
 
 @app.get("/health")
