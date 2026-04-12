@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     vacuum_late_shift_time: str = "15:30"
     vacuum_night_shift_time: str = "08:45"
     vacuum_day_off_time: str = "21:30"
+    day_off_codes: str = ".,V8,rv"
 
 
 settings = Settings()
