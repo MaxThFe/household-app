@@ -17,13 +17,13 @@ SHIFT_TIME_MAP = {
 
 def _resolve_clean_time(
     shift_today: str | None, shift_yesterday: str | None
-) -> str | None:
-    # A night shift on day D means she works overnight D → D+1, so the
-    # "coming home from night shift" slot belongs on the NEXT day.
+) -> str:
+    # A night shift on day D runs overnight D → D+1. The 08:45 slot that
+    # catches her finishing the shift belongs on D+1, not D.
     if shift_yesterday == "Night shift":
         return settings.vacuum_night_shift_time
-    if shift_today == "Night shift":
-        return None
+    # On D itself she's home all day and leaves in the evening, so treat
+    # it like a day off (21:30, after she's left for work).
     attr = SHIFT_TIME_MAP.get(shift_today or "", "vacuum_day_off_time")
     return getattr(settings, attr)
 
