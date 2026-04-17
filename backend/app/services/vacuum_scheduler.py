@@ -1,6 +1,6 @@
 import asyncio
 import logging
-from datetime import datetime
+from datetime import date, datetime, timedelta
 
 import aiosqlite
 
@@ -12,13 +12,30 @@ logger = logging.getLogger(__name__)
 SHIFT_TIME_MAP = {
     "Early shift": "vacuum_early_shift_time",
     "Late shift": "vacuum_late_shift_time",
-    "Night shift": "vacuum_night_shift_time",
 }
 
 
-def _default_time_for_shift(shift_title: str | None) -> str:
-    attr = SHIFT_TIME_MAP.get(shift_title or "", "vacuum_day_off_time")
+def _resolve_clean_time(
+    shift_today: str | None, shift_yesterday: str | None
+) -> str | None:
+    # A night shift on day D means she works overnight D → D+1, so the
+    # "coming home from night shift" slot belongs on the NEXT day.
+    if shift_yesterday == "Night shift":
+        return settings.vacuum_night_shift_time
+    if shift_today == "Night shift":
+        return None
+    attr = SHIFT_TIME_MAP.get(shift_today or "", "vacuum_day_off_time")
     return getattr(settings, attr)
+
+
+async def _get_shift_title(
+    db: aiosqlite.Connection, date_str: str
+) -> str | None:
+    row = await db.execute_fetchall(
+        "SELECT title FROM calendar_events WHERE date = ? AND source = 'ics' LIMIT 1",
+        (date_str,),
+    )
+    return row[0]["title"] if row else None
 
 
 async def get_cleaning_time_for_date(
@@ -34,21 +51,21 @@ async def get_cleaning_time_for_date(
         if row[0]["clean_time"]:
             return row[0]["clean_time"]
 
-    shift_row = await db.execute_fetchall(
-        "SELECT title FROM calendar_events WHERE date = ? AND source = 'ics' LIMIT 1",
-        (date_str,),
-    )
-    shift_title = shift_row[0]["title"] if shift_row else None
-    return _default_time_for_shift(shift_title)
+    shift_today = await _get_shift_title(db, date_str)
+    prev_date = (date.fromisoformat(date_str) - timedelta(days=1)).isoformat()
+    shift_yesterday = await _get_shift_title(db, prev_date)
+    return _resolve_clean_time(shift_today, shift_yesterday)
 
 
 async def get_weekly_schedule(
     db: aiosqlite.Connection, start: str, end: str
 ) -> list[dict]:
+    prev_start = (date.fromisoformat(start) - timedelta(days=1)).isoformat()
+
     shifts = {}
     rows = await db.execute_fetchall(
         "SELECT date, title FROM calendar_events WHERE date >= ? AND date <= ? AND source = 'ics'",
-        (start, end),
+        (prev_start, end),
     )
     for r in rows:
         shifts[r["date"]] = r["title"]
@@ -61,15 +78,15 @@ async def get_weekly_schedule(
     for r in override_rows:
         overrides[r["date"]] = {"clean_time": r["clean_time"], "deleted": r["deleted"]}
 
-    from datetime import date, timedelta
-
     current = date.fromisoformat(start)
     end_date = date.fromisoformat(end)
     schedule = []
 
     while current <= end_date:
         d = current.isoformat()
+        prev_d = (current - timedelta(days=1)).isoformat()
         shift_type = shifts.get(d)
+        shift_yesterday = shifts.get(prev_d)
         override = overrides.get(d)
 
         if override and override["deleted"]:
@@ -90,7 +107,7 @@ async def get_weekly_schedule(
             schedule.append({
                 "date": d,
                 "shift_type": shift_type,
-                "clean_time": _default_time_for_shift(shift_type),
+                "clean_time": _resolve_clean_time(shift_type, shift_yesterday),
                 "is_default": True,
             })
 
