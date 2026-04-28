@@ -6,6 +6,7 @@ import Meals from './pages/Meals'
 import CalendarPage from './pages/Calendar'
 import Recipes from './pages/Recipes'
 import Shopping from './pages/Shopping'
+import Houseplants from './pages/Houseplants'
 
 // --- Auth context ---
 
@@ -48,6 +49,15 @@ function UserSelect({ onSelect }: { onSelect: (name: string) => void }) {
 
 const tabs = [
   {
+    path: '/',
+    label: 'Home',
+    icon: (active: boolean) => (
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path d="M3 10l7-7 7 7M5 8.5V16a1 1 0 001 1h8a1 1 0 001-1V8.5" stroke={active ? '#4A3F35' : '#A89880'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
+    ),
+  },
+  {
     path: '/calendar',
     label: 'Calendar',
     icon: (active: boolean) => (
@@ -70,11 +80,16 @@ const tabs = [
     ),
   },
   {
-    path: '/',
-    label: 'Home',
+    path: '/plants',
+    label: 'Plants',
     icon: (active: boolean) => (
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-        <path d="M3 10l7-7 7 7M5 8.5V16a1 1 0 001 1h8a1 1 0 001-1V8.5" stroke={active ? '#4A3F35' : '#A89880'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        {/* Stem */}
+        <path d="M10 17V8" stroke={active ? '#4A3F35' : '#A89880'} strokeWidth="1.5" strokeLinecap="round" />
+        {/* Left leaf */}
+        <path d="M10 11C7 11 5 9 5 6c3 0 5 2 5 5z" stroke={active ? '#4A3F35' : '#A89880'} strokeWidth="1.5" strokeLinejoin="round" />
+        {/* Right leaf */}
+        <path d="M10 8c0-3 2-5 5-5 0 3-2 5-5 5z" stroke={active ? '#4A3F35' : '#A89880'} strokeWidth="1.5" strokeLinejoin="round" />
       </svg>
     ),
   },
@@ -200,6 +215,7 @@ function AppShell() {
           <Route path="/calendar" element={<CalendarPage />} />
           <Route path="/recipes" element={<Recipes />} />
           <Route path="/shopping" element={<Shopping />} />
+          <Route path="/plants" element={<Houseplants />} />
         </Routes>
       </div>
       <TabBar />

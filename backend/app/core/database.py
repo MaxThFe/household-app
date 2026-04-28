@@ -55,6 +55,15 @@ CREATE TABLE IF NOT EXISTS calendar_events (
     color TEXT DEFAULT '#534AB7',
     notes TEXT DEFAULT ''
 );
+
+CREATE TABLE IF NOT EXISTS houseplants (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    watering_frequency_days INTEGER NOT NULL,
+    last_watered_at TEXT NOT NULL DEFAULT (datetime('now')),
+    image_data TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+);
 """
 
 

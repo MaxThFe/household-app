@@ -1,1 +1,1 @@
-{"root":["./src/app.tsx","./src/main.tsx","./src/api/client.ts","./src/components/modal.tsx","./src/components/toast.tsx","./src/pages/calendar.tsx","./src/pages/home.tsx","./src/pages/meals.tsx","./src/pages/recipes.tsx","./src/pages/shopping.tsx"],"version":"5.9.3"}
+{"root":["./src/app.tsx","./src/main.tsx","./src/api/client.ts","./src/components/modal.tsx","./src/components/toast.tsx","./src/pages/calendar.tsx","./src/pages/home.tsx","./src/pages/houseplants.tsx","./src/pages/meals.tsx","./src/pages/recipes.tsx","./src/pages/shopping.tsx"],"version":"5.9.3"}

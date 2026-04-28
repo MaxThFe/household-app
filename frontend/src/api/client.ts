@@ -83,6 +83,16 @@ export interface ShoppingList {
   categories: Record<string, ShoppingItem[]>
 }
 
+export interface Houseplant {
+  id: number
+  name: string
+  watering_frequency_days: number
+  last_watered_at: string
+  image_data: string | null
+  created_at: string
+  days_until_due: number
+}
+
 export interface CalendarEvent {
   id: number
   date: string
@@ -183,6 +193,29 @@ export const api = {
         headers: authHeaders(),
       })
     },
+  },
+
+  houseplants: {
+    list: () => request<Houseplant[]>(`${BASE}/houseplants`),
+    add: (data: { name: string; watering_frequency_days: number; image_data?: string | null }) =>
+      request<Houseplant>(`${BASE}/houseplants`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify(data),
+      }),
+    update: (id: number, data: { name?: string; watering_frequency_days?: number; image_data?: string | null }) =>
+      request<Houseplant>(`${BASE}/houseplants/${id}`, {
+        method: 'PATCH',
+        headers: authHeaders(),
+        body: JSON.stringify(data),
+      }),
+    water: (id: number) =>
+      request<Houseplant>(`${BASE}/houseplants/${id}/water`, {
+        method: 'POST',
+        headers: authHeaders(),
+      }),
+    delete: (id: number) =>
+      request<void>(`${BASE}/houseplants/${id}`, { method: 'DELETE', headers: authHeaders() }),
   },
 
   calendar: {

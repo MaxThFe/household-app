@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { api, CalendarEvent, Meal, ShoppingItem, toISOWeek, todayISO, dateISO, greeting } from '../api/client'
+import { api, CalendarEvent, Houseplant, Meal, ShoppingItem, toISOWeek, todayISO, dateISO, greeting } from '../api/client'
 
 export default function Home() {
   const navigate = useNavigate()
@@ -10,6 +10,7 @@ export default function Home() {
   const [meals, setMeals] = useState<Meal[]>([])
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [shopping, setShopping] = useState<ShoppingItem[]>([])
+  const [plants, setPlants] = useState<Houseplant[]>([])
 
   useEffect(() => {
     const month = today.slice(0, 7)
@@ -17,10 +18,12 @@ export default function Home() {
       api.meals.list(weekStr),
       api.calendar.list({ month }),
       api.shopping.list(),
-    ]).then(([m, e, s]) => {
+      api.houseplants.list(),
+    ]).then(([m, e, s, p]) => {
       setMeals(m)
       setEvents(e)
       setShopping(Object.values(s.categories).flat())
+      setPlants(p)
     }).catch(() => {})
   }, [weekStr, today])
 
@@ -40,6 +43,10 @@ export default function Home() {
 
   const shoppingPreview = shopping.slice(0, 4)
   const shoppingExtra = shopping.length > 4 ? shopping.length - 4 : 0
+
+  const plantsDue = plants.filter(p => p.days_until_due <= 0)
+  const plantsPreview = plantsDue.slice(0, 4)
+  const plantsExtra = plantsDue.length > 4 ? plantsDue.length - 4 : 0
 
   const todayFormatted = new Date().toLocaleDateString('en-GB', {
     weekday: 'long', day: 'numeric', month: 'long',
@@ -103,6 +110,31 @@ export default function Home() {
                 ))}
                 {shoppingExtra > 0 && (
                   <span style={{ fontSize: 12, color: 'var(--text-muted)', padding: '4px 10px' }}>+{shoppingExtra} more</span>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Plants needing water */}
+        {plantsDue.length > 0 && (
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+              <p className="section-label" style={{ margin: 0 }}>Needs water</p>
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{plantsDue.length} {plantsDue.length === 1 ? 'plant' : 'plants'}</span>
+            </div>
+            <div className="card" style={{ cursor: 'pointer' }} onClick={() => navigate('/plants')}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {plantsPreview.map(plant => (
+                  <span
+                    key={plant.id}
+                    style={{ fontSize: 12, background: 'var(--bg-page)', color: 'var(--text-primary)', padding: '4px 10px', borderRadius: 20, border: '0.5px solid var(--border)' }}
+                  >
+                    {plant.name}
+                  </span>
+                ))}
+                {plantsExtra > 0 && (
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)', padding: '4px 10px' }}>+{plantsExtra} more</span>
                 )}
               </div>
             </div>
