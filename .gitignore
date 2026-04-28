@@ -1,6 +1,7 @@
 backend/.env
 .claude/
 backend/data/*.db
+backend/data/roborock_token.json
 backend/.venv/
 __pycache__/
 *.pyc

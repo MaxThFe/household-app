@@ -111,6 +111,13 @@ export interface AppConfig {
   user2_name: string
 }
 
+export interface VacuumScheduleEntry {
+  date: string
+  shift_type: string | null
+  clean_time: string | null
+  is_default: boolean
+}
+
 // --- API methods ---
 
 export const api = {
@@ -216,6 +223,27 @@ export const api = {
       }),
     delete: (id: number) =>
       request<void>(`${BASE}/houseplants/${id}`, { method: 'DELETE', headers: authHeaders() }),
+  },
+
+  vacuum: {
+    schedule: (start: string, end: string) =>
+      request<VacuumScheduleEntry[]>(`${BASE}/vacuum/schedule?start=${start}&end=${end}`),
+    setOverride: (date: string, clean_time: string) =>
+      request<void>(`${BASE}/vacuum/overrides/${date}`, {
+        method: 'PUT',
+        headers: authHeaders(),
+        body: JSON.stringify({ clean_time }),
+      }),
+    deleteCleaning: (date: string) =>
+      request<void>(`${BASE}/vacuum/overrides/${date}`, {
+        method: 'DELETE',
+        headers: authHeaders(),
+      }),
+    restore: (date: string) =>
+      request<void>(`${BASE}/vacuum/overrides/${date}/restore`, {
+        method: 'POST',
+        headers: authHeaders(),
+      }),
   },
 
   calendar: {

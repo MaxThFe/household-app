@@ -4,6 +4,8 @@ services:
     build: ./backend
     restart: unless-stopped
     env_file: backend/.env
+    environment:
+      - TZ=Europe/Berlin
     volumes:
       - ./backend/data:/app/data
 

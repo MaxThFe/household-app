@@ -64,6 +64,12 @@ CREATE TABLE IF NOT EXISTS houseplants (
     image_data TEXT,
     created_at TEXT DEFAULT (datetime('now'))
 );
+
+CREATE TABLE IF NOT EXISTS vacuum_overrides (
+    date TEXT PRIMARY KEY,
+    clean_time TEXT,
+    deleted INTEGER DEFAULT 0
+);
 """
 
 

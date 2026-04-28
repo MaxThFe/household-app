@@ -13,8 +13,11 @@ logger = logging.getLogger(__name__)
 MARGAUX_COLOR = "#D85A30"
 
 
-def shift_type(start_time: str | None) -> str:
-    """Return shift type label based on start time."""
+def shift_type(start_time: str | None, summary: str = "") -> str:
+    """Return shift type label based on start time and ICS summary code."""
+    day_off_codes = {c.strip() for c in settings.day_off_codes.split(",") if c.strip()}
+    if summary in day_off_codes:
+        return "Day off"
     if not start_time:
         return "Shift"
     if start_time < "12:00":
@@ -76,7 +79,8 @@ async def sync_ics(db: aiosqlite.Connection) -> None:
             start_time_str = None
             end_time_str = None
 
-        stype = shift_type(start_time_str)
+        summary = str(component.get("SUMMARY", ""))
+        stype = shift_type(start_time_str, summary)
 
         await db.execute(
             """

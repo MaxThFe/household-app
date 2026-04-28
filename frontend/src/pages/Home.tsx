@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, CalendarEvent, Houseplant, Meal, ShoppingItem, toISOWeek, todayISO, dateISO, greeting } from '../api/client'
+import { SettingsSidebar } from '../components/SettingsSidebar'
 
 export default function Home() {
   const navigate = useNavigate()
@@ -11,6 +12,7 @@ export default function Home() {
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [shopping, setShopping] = useState<ShoppingItem[]>([])
   const [plants, setPlants] = useState<Houseplant[]>([])
+  const [showSettings, setShowSettings] = useState(false)
 
   useEffect(() => {
     const month = today.slice(0, 7)
@@ -56,9 +58,24 @@ export default function Home() {
     <div>
       {/* Header */}
       <div className="page-header">
-        <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{todayFormatted}</p>
-        <p style={{ fontSize: 22, fontWeight: 500, marginTop: 4 }}>{greeting()}</p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+          <div>
+            <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{todayFormatted}</p>
+            <p style={{ fontSize: 22, fontWeight: 500, marginTop: 4 }}>{greeting()}</p>
+          </div>
+          <button onClick={() => setShowSettings(true)} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: 4, color: '#A89880' }}>
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <circle cx="10" cy="10" r="7" stroke="currentColor" strokeWidth="1.5" />
+              <circle cx="10" cy="10" r="2" stroke="currentColor" strokeWidth="1.5" />
+              <circle cx="10" cy="5.5" r="0.75" fill="currentColor" />
+              <path d="M6 16h8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+            <span style={{ fontSize: 12, fontWeight: 500 }}>Larry</span>
+          </button>
+        </div>
       </div>
+
+      {showSettings && <SettingsSidebar onClose={() => setShowSettings(false)} />}
 
       <div style={{ padding: '16px 20px' }}>
 
