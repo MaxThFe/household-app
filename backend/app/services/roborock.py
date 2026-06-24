@@ -40,16 +40,17 @@ async def verify_login_code(client: "RoborockApiClient", code: str) -> None:
 
 
 async def start_cleaning() -> None:
+    from roborock import RoborockCommand
     from roborock.devices.device_manager import UserParams, create_device_manager
+    from roborock.web_api import UserData
 
     token = _load_token()
     if not token:
         logger.error("Roborock not authenticated — run setup first")
         return
 
+    device_manager = None
     try:
-        from roborock.web_api import UserData
-
         user_data = UserData.from_dict(token["user_data"])
         user_params = UserParams(
             username=token["username"],
@@ -61,8 +62,6 @@ async def start_cleaning() -> None:
 
         for device in devices:
             if device.v1_properties:
-                from roborock import RoborockCommand
-
                 await device.v1_properties.command.send(RoborockCommand.APP_START)
                 logger.info("Cleaning started on %s", device.name)
                 break
@@ -70,6 +69,12 @@ async def start_cleaning() -> None:
             logger.warning("No compatible Roborock device found")
     except Exception:
         logger.exception("Failed to start Roborock cleaning")
+    finally:
+        if device_manager is not None:
+            try:
+                await device_manager.close()
+            except Exception:
+                logger.exception("Failed to close Roborock device manager")
 
 
 def is_authenticated() -> bool:
