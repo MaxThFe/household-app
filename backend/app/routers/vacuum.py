@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, BackgroundTasks, Depends
 
 from app.core.auth import require_auth
 from app.core.database import get_db
 from app.models.vacuum import VacuumOverrideCreate, VacuumScheduleEntry
+from app.services.roborock import wash_mop_then_goto
 from app.services.vacuum_scheduler import get_weekly_schedule
 
 router = APIRouter(prefix="/vacuum", tags=["vacuum"])
@@ -43,3 +44,8 @@ async def delete_cleaning(date: str, db=Depends(get_db), _=Depends(require_auth)
 async def restore_default(date: str, db=Depends(get_db), _=Depends(require_auth)):
     await db.execute("DELETE FROM vacuum_overrides WHERE date = ?", (date,))
     await db.commit()
+
+
+@router.post("/wash-and-goto", status_code=202)
+async def wash_and_goto(background: BackgroundTasks, _=Depends(require_auth)):
+    background.add_task(wash_mop_then_goto)

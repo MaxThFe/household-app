@@ -244,6 +244,11 @@ export const api = {
         method: 'POST',
         headers: authHeaders(),
       }),
+    washAndGoto: () =>
+      request<void>(`${BASE}/vacuum/wash-and-goto`, {
+        method: 'POST',
+        headers: authHeaders(),
+      }),
   },
 
   calendar: {

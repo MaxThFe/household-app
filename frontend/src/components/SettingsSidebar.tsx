@@ -9,6 +9,7 @@ export function SettingsSidebar({ onClose }: Props) {
   const [schedule, setSchedule] = useState<VacuumScheduleEntry[]>([])
   const [editingDate, setEditingDate] = useState<string | null>(null)
   const [editTime, setEditTime] = useState('')
+  const [sending, setSending] = useState(false)
 
   const loadSchedule = useCallback(() => {
     const monday = getMondayFromWeek(toISOWeek(new Date()))
@@ -61,6 +62,12 @@ export function SettingsSidebar({ onClose }: Props) {
 
   const handleEditCancel = () => {
     setEditingDate(null)
+  }
+
+  const handleWashAndGoto = async () => {
+    setSending(true)
+    await api.vacuum.washAndGoto().catch(() => {})
+    setSending(false)
   }
 
   return (
@@ -173,6 +180,23 @@ export function SettingsSidebar({ onClose }: Props) {
               )
             })}
           </div>
+          <button
+            onClick={handleWashAndGoto}
+            disabled={sending}
+            style={{
+              marginTop: 16,
+              width: '100%',
+              padding: '12px 16px',
+              background: 'var(--bg-active)',
+              color: 'var(--text-on-dark)',
+              borderRadius: 8,
+              fontSize: 14,
+              fontWeight: 500,
+              opacity: sending ? 0.6 : 1,
+            }}
+          >
+            {sending ? 'Sending…' : 'Wash mops & park at spot'}
+          </button>
         </div>
       </div>
     </>
