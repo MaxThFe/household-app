@@ -195,7 +195,7 @@ export function SettingsSidebar({ onClose }: Props) {
               opacity: sending ? 0.6 : 1,
             }}
           >
-            {sending ? 'Sending…' : 'Wash mops & park at spot'}
+            {sending ? 'Sending…' : 'Prepare for upstairs'}
           </button>
         </div>
       </div>
