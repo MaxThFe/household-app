@@ -19,7 +19,7 @@ from functools import lru_cache
 
 # slug, label — this order is the default aisle order for every market
 SECTIONS: list[tuple[str, str]] = [
-    ("produce", "Produce"),
+    ("Fruit & Veggies", "Fruit & Veggies"),
     ("bakery", "Bakery"),
     ("dairy", "Dairy & Eggs"),
     ("deli", "Cold Cuts & Deli"),
@@ -49,7 +49,7 @@ DEFAULT_MARKET = MARKET_SLUGS[0]
 # so "müsli" and "musli" are the same keyword. Common alternative spellings
 # that folding does NOT unify ("muesli") are listed explicitly.
 KEYWORDS: dict[str, list[str]] = {
-    "produce": [
+    "Fruit & Veggies": [
         # en
         "apple", "apricot", "artichoke", "arugula", "asparagus", "aubergine",
         "avocado", "banana", "basil", "beetroot", "bell pepper", "berries",
