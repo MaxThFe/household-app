@@ -1,15 +1,76 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { api, ShoppingItem, ShoppingList } from '../api/client'
+import { api, getMarket, setMarket, MarketInfo, SectionInfo, ShoppingItem, ShoppingList } from '../api/client'
 import { Modal } from '../components/Modal'
+import { SectionOrderSheet } from '../components/SectionOrderSheet'
 import { Toast } from '../components/Toast'
+
+const DEFAULT_CATEGORIES = ['supermarket', 'household']
+
+// --- Category picker, shared by the add and edit modals ---
+interface PickerProps {
+  existingCategories: string[]
+  store: string
+  onStoreChange: (store: string) => void
+  customStore: string
+  onCustomStoreChange: (store: string) => void
+  showCustomInput: boolean
+  onShowCustomInput: (show: boolean) => void
+}
+
+function CategoryPicker({
+  existingCategories,
+  store,
+  onStoreChange,
+  customStore,
+  onCustomStoreChange,
+  showCustomInput,
+  onShowCustomInput,
+}: PickerProps) {
+  const customCategories = existingCategories.filter(c => !DEFAULT_CATEGORIES.includes(c))
+  const allPills = [...DEFAULT_CATEGORIES, ...customCategories]
+
+  return (
+    <div className="form-group">
+      <label className="form-label">Category</label>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {allPills.map(s => (
+          <button
+            key={s}
+            className={`pill ${!showCustomInput && store === s ? 'pill-active' : 'pill-inactive'}`}
+            onClick={() => { onStoreChange(s); onShowCustomInput(false) }}
+          >
+            {s.charAt(0).toUpperCase() + s.slice(1)}
+          </button>
+        ))}
+        <button
+          className={`pill ${showCustomInput ? 'pill-active' : 'pill-inactive'}`}
+          onClick={() => onShowCustomInput(true)}
+        >
+          + Custom
+        </button>
+      </div>
+      {showCustomInput && (
+        <input
+          className="form-input"
+          style={{ marginTop: 8 }}
+          value={customStore}
+          onChange={e => onCustomStoreChange(e.target.value)}
+          placeholder="Category name"
+          autoFocus
+        />
+      )}
+    </div>
+  )
+}
 
 // --- Add item modal ---
 interface AddItemModalProps {
+  existingCategories: string[]
   onClose: () => void
   onSaved: () => void
 }
 
-function AddItemModal({ onClose, onSaved, existingCategories }: AddItemModalProps & { existingCategories: string[] }) {
+function AddItemModal({ onClose, onSaved, existingCategories }: AddItemModalProps) {
   const [name, setName] = useState('')
   const [quantity, setQuantity] = useState('')
   const [unit, setUnit] = useState('')
@@ -17,10 +78,6 @@ function AddItemModal({ onClose, onSaved, existingCategories }: AddItemModalProp
   const [customStore, setCustomStore] = useState('')
   const [showCustomInput, setShowCustomInput] = useState(false)
   const [saving, setSaving] = useState(false)
-
-  const defaultCategories = ['supermarket', 'household']
-  const customCategories = existingCategories.filter(c => !defaultCategories.includes(c))
-  const allPills = [...defaultCategories, ...customCategories]
 
   async function handleSave() {
     if (!name.trim()) return
@@ -65,36 +122,15 @@ function AddItemModal({ onClose, onSaved, existingCategories }: AddItemModalProp
           <input className="form-input" value={unit} onChange={e => setUnit(e.target.value)} placeholder="g, ml, pcs…" />
         </div>
       </div>
-      <div className="form-group">
-        <label className="form-label">Category</label>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {allPills.map(s => (
-            <button
-              key={s}
-              className={`pill ${!showCustomInput && store === s ? 'pill-active' : 'pill-inactive'}`}
-              onClick={() => { setStore(s); setShowCustomInput(false) }}
-            >
-              {s.charAt(0).toUpperCase() + s.slice(1)}
-            </button>
-          ))}
-          <button
-            className={`pill ${showCustomInput ? 'pill-active' : 'pill-inactive'}`}
-            onClick={() => setShowCustomInput(true)}
-          >
-            + Custom
-          </button>
-        </div>
-        {showCustomInput && (
-          <input
-            className="form-input"
-            style={{ marginTop: 8 }}
-            value={customStore}
-            onChange={e => setCustomStore(e.target.value)}
-            placeholder="Category name"
-            autoFocus
-          />
-        )}
-      </div>
+      <CategoryPicker
+        existingCategories={existingCategories}
+        store={store}
+        onStoreChange={setStore}
+        customStore={customStore}
+        onCustomStoreChange={setCustomStore}
+        showCustomInput={showCustomInput}
+        onShowCustomInput={setShowCustomInput}
+      />
     </Modal>
   )
 }
@@ -112,11 +148,10 @@ function EditItemModal({ item, existingCategories, onClose, onSaved }: EditItemM
   const [quantity, setQuantity] = useState(item.quantity != null ? String(item.quantity) : '')
   const [unit, setUnit] = useState(item.unit)
   const [store, setStore] = useState(item.store || 'supermarket')
-  const defaultCategories = ['supermarket', 'household']
-  const customCategories = existingCategories.filter(c => !defaultCategories.includes(c))
-  const allPills = [...defaultCategories, ...customCategories]
+  const customCategories = existingCategories.filter(c => !DEFAULT_CATEGORIES.includes(c))
+  const allPills = [...DEFAULT_CATEGORIES, ...customCategories]
   const [customStore, setCustomStore] = useState(!allPills.includes(item.store) && item.store ? item.store : '')
-  const [showCustomInput, setShowCustomInput] = useState(!allPills.includes(store))
+  const [showCustomInput, setShowCustomInput] = useState(!allPills.includes(item.store || 'supermarket'))
   const [saving, setSaving] = useState(false)
 
   async function handleSave() {
@@ -162,36 +197,15 @@ function EditItemModal({ item, existingCategories, onClose, onSaved }: EditItemM
           <input className="form-input" value={unit} onChange={e => setUnit(e.target.value)} placeholder="g, ml, pcs…" />
         </div>
       </div>
-      <div className="form-group">
-        <label className="form-label">Category</label>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {allPills.map(s => (
-            <button
-              key={s}
-              className={`pill ${!showCustomInput && store === s ? 'pill-active' : 'pill-inactive'}`}
-              onClick={() => { setStore(s); setShowCustomInput(false) }}
-            >
-              {s.charAt(0).toUpperCase() + s.slice(1)}
-            </button>
-          ))}
-          <button
-            className={`pill ${showCustomInput ? 'pill-active' : 'pill-inactive'}`}
-            onClick={() => setShowCustomInput(true)}
-          >
-            + Custom
-          </button>
-        </div>
-        {showCustomInput && (
-          <input
-            className="form-input"
-            style={{ marginTop: 8 }}
-            value={customStore}
-            onChange={e => setCustomStore(e.target.value)}
-            placeholder="Category name"
-            autoFocus
-          />
-        )}
-      </div>
+      <CategoryPicker
+        existingCategories={existingCategories}
+        store={store}
+        onStoreChange={setStore}
+        customStore={customStore}
+        onCustomStoreChange={setCustomStore}
+        showCustomInput={showCustomInput}
+        onShowCustomInput={setShowCustomInput}
+      />
     </Modal>
   )
 }
@@ -233,32 +247,74 @@ function ShoppingRow({ item, onCheck, onEdit, pendingIds }: ShoppingRowProps) {
   )
 }
 
-// --- Section ---
-function Section({ title, items, onCheck, onEdit, pendingIds }: { title: string; items: ShoppingItem[]; onCheck: (item: ShoppingItem) => void; onEdit: (item: ShoppingItem) => void; pendingIds: Set<number> }) {
+// --- Category group, optionally split into aisle sections ---
+interface SectionProps {
+  title: string
+  items: ShoppingItem[]
+  sectionOrder: string[] | null
+  sections: SectionInfo[]
+  headerRight?: React.ReactNode
+  onCheck: (item: ShoppingItem) => void
+  onEdit: (item: ShoppingItem) => void
+  pendingIds: Set<number>
+}
+
+function Section({ title, items, sectionOrder, sections, headerRight, onCheck, onEdit, pendingIds }: SectionProps) {
   if (items.length === 0) return null
+
+  const sectionInfo = new Map(sections.map(s => [s.slug, s]))
+  const grouped = sectionOrder
+    ? sectionOrder
+        .map(slug => ({ slug, items: items.filter(i => i.section === slug) }))
+        .filter(g => g.items.length > 0)
+    : []
+  // Nothing gained from dividers when everything sits in one aisle
+  const showSections = grouped.length > 1
+
   return (
     <div className="shopping-group">
       <div className="shopping-group-header">
         <span>{title}</span>
-        <span>{items.length} {items.length === 1 ? 'item' : 'items'}</span>
+        {headerRight ?? <span>{items.length} {items.length === 1 ? 'item' : 'items'}</span>}
       </div>
       <div className="shopping-list-card">
-        {items.map(item => (
-          <ShoppingRow key={item.id} item={item} onCheck={onCheck} onEdit={onEdit} pendingIds={pendingIds} />
-        ))}
+        {showSections
+          ? grouped.map(group => (
+              <div key={group.slug} className="shopping-section-group">
+                <div className="shopping-section-header">
+                  {sectionInfo.get(group.slug)?.label ?? group.slug}
+                </div>
+                {group.items.map(item => (
+                  <ShoppingRow key={item.id} item={item} onCheck={onCheck} onEdit={onEdit} pendingIds={pendingIds} />
+                ))}
+              </div>
+            ))
+          : items.map(item => (
+              <ShoppingRow key={item.id} item={item} onCheck={onCheck} onEdit={onEdit} pendingIds={pendingIds} />
+            ))}
       </div>
     </div>
   )
 }
 
+function PencilIcon() {
+  return (
+    <svg width="11" height="11" viewBox="0 0 12 12" fill="none">
+      <path d="M8.2 1.8l2 2L4 10H2V8l6.2-6.2z" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 // --- Main shopping page ---
 export default function Shopping() {
-  const [list, setList] = useState<ShoppingList>({ categories: {} })
+  const [list, setList] = useState<ShoppingList>({ categories: {}, sections: [], markets: [], section_orders: {} })
   const [loading, setLoading] = useState(true)
   const [showAddModal, setShowAddModal] = useState(false)
+  const [showOrderSheet, setShowOrderSheet] = useState(false)
   const [editItem, setEditItem] = useState<ShoppingItem | null>(null)
   const [pendingIds, setPendingIds] = useState<Set<number>>(new Set())
   const [toast, setToast] = useState<{ item: ShoppingItem } | null>(null)
+  const [market, setMarketState] = useState(getMarket())
   const pendingTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map())
 
   const loadList = useCallback(() => {
@@ -266,6 +322,11 @@ export default function Shopping() {
   }, [])
 
   useEffect(() => { loadList() }, [loadList])
+
+  function selectMarket(slug: string) {
+    setMarketState(slug)
+    setMarket(slug)
+  }
 
   function handleCheck(item: ShoppingItem) {
     if (pendingIds.has(item.id)) {
@@ -306,6 +367,37 @@ export default function Shopping() {
 
   const allCategories = Object.entries(list.categories)
   const totalItems = allCategories.reduce((sum, [, items]) => sum + items.length, 0)
+  const activeMarket: MarketInfo | undefined =
+    list.markets.find(m => m.slug === market) ?? list.markets[0]
+  const sectionOrder = activeMarket ? list.section_orders[activeMarket.slug] ?? null : null
+
+  const marketSwitcher = activeMarket && (
+    <div style={{ display: 'flex', gap: 6, marginLeft: 'auto' }}>
+      {list.markets.map(m => {
+        const isActive = activeMarket.slug === m.slug
+        return (
+          <button
+            key={m.slug}
+            className={`pill ${isActive ? 'pill-active' : 'pill-inactive'}`}
+            style={{ gap: 6 }}
+            onClick={() => selectMarket(m.slug)}
+          >
+            {m.label}
+            {isActive && (
+              <span
+                role="button"
+                title="Edit aisle order"
+                onClick={e => { e.stopPropagation(); setShowOrderSheet(true) }}
+                style={{ display: 'inline-flex', opacity: 0.65 }}
+              >
+                <PencilIcon />
+              </span>
+            )}
+          </button>
+        )
+      })}
+    </div>
+  )
 
   return (
     <div>
@@ -318,7 +410,7 @@ export default function Shopping() {
               {totalItems} {totalItems === 1 ? 'item' : 'items'}
             </p>
           </div>
-          <button className="add-btn" onClick={() => setShowAddModal(true)}>
+          <button className="add-btn" title="Add item" onClick={() => setShowAddModal(true)}>
             <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
               <path d="M9 3v12M3 9h12" stroke="var(--text-on-dark)" strokeWidth="1.5" strokeLinecap="round" />
             </svg>
@@ -341,6 +433,9 @@ export default function Shopping() {
                 key={cat}
                 title={cat.charAt(0).toUpperCase() + cat.slice(1)}
                 items={items}
+                sectionOrder={cat === 'supermarket' ? sectionOrder : null}
+                sections={list.sections}
+                headerRight={cat === 'supermarket' ? marketSwitcher : undefined}
                 onCheck={handleCheck}
                 onEdit={setEditItem}
                 pendingIds={pendingIds}
@@ -363,6 +458,16 @@ export default function Shopping() {
           item={editItem}
           existingCategories={Object.keys(list.categories)}
           onClose={() => setEditItem(null)}
+          onSaved={loadList}
+        />
+      )}
+
+      {showOrderSheet && activeMarket && (
+        <SectionOrderSheet
+          market={activeMarket}
+          sections={list.sections}
+          order={sectionOrder ?? list.sections.map(s => s.slug)}
+          onClose={() => setShowOrderSheet(false)}
           onSaved={loadList}
         />
       )}

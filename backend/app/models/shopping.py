@@ -28,7 +28,26 @@ class ShoppingItemResponse(BaseModel):
     is_manual: int
     added_at: str
     source_names: str | None = None
+    section: str = "other"
+
+
+class SectionInfo(BaseModel):
+    slug: str
+    label: str
+
+
+class MarketInfo(BaseModel):
+    slug: str
+    label: str
+
+
+class SectionOrderUpdate(BaseModel):
+    market: str
+    order: list[str]
 
 
 class ShoppingListResponse(BaseModel):
     categories: dict[str, list[ShoppingItemResponse]] = {}
+    sections: list[SectionInfo] = []
+    markets: list[MarketInfo] = []
+    section_orders: dict[str, list[str]] = {}
