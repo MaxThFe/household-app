@@ -112,7 +112,7 @@ KEYWORDS: dict[str, list[str]] = {
         "gouda", "greek yogurt", "gruyere", "halloumi", "havarti",
         "mascarpone", "milk", "mozzarella", "oat milk", "parmesan",
         "pecorino", "quark", "ricotta", "skyr", "soy milk", "sour cream",
-        "whipping cream", "yoghurt", "yogurt",
+        "whipping cream", "yoghurt", "yogurt", "burrata", "gorgonzola", "emmental", "emmentaler", "havermelk", "hüttenkäse",
         # de
         "buttermilch", "eier", "frischkäse", "hafermilch", "hüttenkäse",
         "joghurt", "jogurt", "käse", "kaese", "milch", "sahne", "sauerrahm",
