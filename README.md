@@ -50,7 +50,11 @@ docker restart ourhome
 
 The home screen shows temperature and humidity from Bluetooth sensors
 broadcasting unencrypted BTHome v2 (service UUID `0xFCD2`). The Pi only listens
-— no pairing or cloud account — and readings are kept in memory, not stored.
+— no pairing or cloud account. Tapping the Rooms section charts the history.
+
+Readings are sampled once a minute into `data/sensors.db`, separate from the app
+database and kept indefinitely (~60 MB/year), so the raw rows stay queryable
+with `sqlite3` directly.
 
 Set one MAC per room in `backend/.env`; a room left blank is not shown:
 

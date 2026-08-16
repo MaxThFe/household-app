@@ -143,6 +143,18 @@ export interface SensorReading {
   stale: boolean
 }
 
+export interface SensorSeries {
+  room: string
+  metric: string
+  unit: string
+}
+
+export interface SensorHistory extends SensorSeries {
+  // True when the range held more points than asked for and they were averaged.
+  bucketed: boolean
+  points: [number, number][]
+}
+
 // --- API methods ---
 
 export const api = {
@@ -152,6 +164,15 @@ export const api = {
 
   sensors: {
     list: () => request<SensorReading[]>(`${BASE}/sensors`),
+    series: () => request<SensorSeries[]>(`${BASE}/sensors/series`),
+    history: (start: Date, end: Date, series: string[]) => {
+      const params = new URLSearchParams({
+        start: start.toISOString(),
+        end: end.toISOString(),
+      })
+      series.forEach(s => params.append('series', s))
+      return request<SensorHistory[]>(`${BASE}/sensors/history?${params}`)
+    },
   },
 
   recipes: {

@@ -158,8 +158,11 @@ export default function Home() {
 
         {/* Room climate */}
         {sensors.length > 0 && (
-          <div>
-            <p className="section-label">Rooms</p>
+          <div onClick={() => navigate('/rooms')} style={{ cursor: 'pointer' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <p className="section-label">Rooms</p>
+              <ChevronRight />
+            </div>
             <div style={{ display: 'flex', gap: 8 }}>
               {sensors.map(sensor => (
                 <div

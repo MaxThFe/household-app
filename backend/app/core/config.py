@@ -24,6 +24,8 @@ class Settings(BaseSettings):
     sensor_bedroom_mac: str = ""
     sensor_kitchen_mac: str = ""
     sensor_stale_after_minutes: int = 30
+    # Sensor history, kept in its own SQLite file.
+    timeseries_path: str = "data/sensors.db"
 
 
 settings = Settings()
