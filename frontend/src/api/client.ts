@@ -131,11 +131,27 @@ export interface VacuumScheduleEntry {
   is_default: boolean
 }
 
+export interface SensorReading {
+  room: string
+  mac: string
+  temperature: number | null
+  humidity: number | null
+  battery: number | null
+  voltage: number | null
+  rssi: number | null
+  last_seen: string | null
+  stale: boolean
+}
+
 // --- API methods ---
 
 export const api = {
   config: {
     get: () => request<AppConfig>(`${BASE}/config`),
+  },
+
+  sensors: {
+    list: () => request<SensorReading[]>(`${BASE}/sensors`),
   },
 
   recipes: {

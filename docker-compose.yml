@@ -8,6 +8,8 @@ services:
       - TZ=Europe/Berlin
     volumes:
       - ./backend/data:/app/data
+      # BLE sensor readings come from the host's BlueZ over the system D-Bus.
+      - /run/dbus:/run/dbus:ro
 
   frontend:
     image: ghcr.io/maxthfe/household-app/frontend:latest

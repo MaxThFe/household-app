@@ -18,6 +18,12 @@ class Settings(BaseSettings):
     vacuum_goto_target_x: int = 25500
     vacuum_goto_target_y: int = 25500
     day_off_codes: str = ".,V8,rv"
+    # BTHome v2 temperature/humidity sensors, by MAC — set in .env. A room with
+    # no MAC configured is simply not shown.
+    sensor_living_room_mac: str = ""
+    sensor_bedroom_mac: str = ""
+    sensor_kitchen_mac: str = ""
+    sensor_stale_after_minutes: int = 30
 
 
 settings = Settings()
