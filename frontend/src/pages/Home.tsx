@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { api, CalendarEvent, Houseplant, Meal, ShoppingItem, toISOWeek, todayISO, dateISO, greeting } from '../api/client'
+import { api, CalendarEvent, Houseplant, Meal, SensorReading, ShoppingItem, toISOWeek, todayISO, dateISO, greeting } from '../api/client'
 import { SettingsSidebar } from '../components/SettingsSidebar'
 
 export default function Home() {
@@ -12,6 +12,7 @@ export default function Home() {
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [shopping, setShopping] = useState<ShoppingItem[]>([])
   const [plants, setPlants] = useState<Houseplant[]>([])
+  const [sensors, setSensors] = useState<SensorReading[]>([])
   const [showSettings, setShowSettings] = useState(false)
 
   useEffect(() => {
@@ -28,6 +29,14 @@ export default function Home() {
       setPlants(p)
     }).catch(() => {})
   }, [weekStr, today])
+
+  // Sensor readings go stale quickly, so keep them ticking over on their own.
+  useEffect(() => {
+    const load = () => api.sensors.list().then(setSensors).catch(() => {})
+    load()
+    const id = setInterval(load, 60_000)
+    return () => clearInterval(id)
+  }, [])
 
   const todayEvents = events.filter(e => e.date === today)
   const todayShift = todayEvents.find(e => e.source === 'ics')
@@ -159,7 +168,7 @@ export default function Home() {
         )}
 
         {/* Coming up */}
-        <div>
+        <div style={{ marginBottom: 20 }}>
           <p className="section-label">Coming up</p>
           <div style={{ display: 'flex', gap: 8 }}>
             {upcoming.map(({ date, meal, shift, day }) => (
@@ -178,6 +187,40 @@ export default function Home() {
             ))}
           </div>
         </div>
+
+        {/* Room climate */}
+        {sensors.length > 0 && (
+          <div>
+            <p className="section-label">Rooms</p>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {sensors.map(sensor => (
+                <div
+                  key={sensor.mac}
+                  className="card"
+                  style={{ flex: 1, textAlign: 'center', marginBottom: 0, padding: '10px 8px' }}
+                >
+                  <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>{sensor.room}</p>
+                  <p style={{
+                    fontSize: 18,
+                    fontWeight: 500,
+                    margin: '2px 0',
+                    color: sensor.stale ? 'var(--text-muted)' : 'var(--text-primary)',
+                  }}>
+                    {sensor.temperature !== null ? `${sensor.temperature.toFixed(1)}°` : '–'}
+                  </p>
+                  <p style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+                    {sensor.humidity !== null ? `${Math.round(sensor.humidity)}%` : '–'}
+                  </p>
+                  {sensor.battery != null && sensor.battery < 5 && (
+                    <p style={{ fontSize: 10, color: 'var(--accent-red)', marginTop: 2 }}>
+                      battery {sensor.battery}%
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
       </div>
     </div>

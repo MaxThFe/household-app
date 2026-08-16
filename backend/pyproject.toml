@@ -12,6 +12,7 @@ dependencies = [
     "icalendar>=6.0.0",
     "python-dateutil>=2.9.0",
     "python-roborock>=2.0.0",
+    "bleak>=0.22.0",
 ]
 
 [build-system]

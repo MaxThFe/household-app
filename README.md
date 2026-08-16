@@ -1,6 +1,6 @@
 # OurHome
 
-A household management PWA built for two people. It covers meal planning with a shared recipe book, a collaborative shopping list, and a calendar that syncs work shifts from an ICS feed — all accessible from any device on the home network.
+A household management PWA built for two people. It covers meal planning with a shared recipe book, a collaborative shopping list, a calendar that syncs work shifts from an ICS feed, and live room temperature and humidity — all accessible from any device on the home network.
 
 <p align="center">
   <img src="docs/screenshots/dash-board.JPEG" width="32%">
@@ -43,6 +43,25 @@ The SQLite database is persisted at `/home/pi/ourhome/data` on the host.
 docker pull ghcr.io/maxthfe/household-app/backend:latest
 docker restart ourhome
 ```
+
+---
+
+## Room sensors
+
+The home screen shows temperature and humidity from Bluetooth sensors
+broadcasting unencrypted BTHome v2 (service UUID `0xFCD2`). The Pi only listens
+— no pairing or cloud account — and readings are kept in memory, not stored.
+
+Set one MAC per room in `backend/.env`; a room left blank is not shown:
+
+```bash
+HT_SENSOR_LIVING_ROOM_MAC=AA:BB:CC:DD:EE:01
+HT_SENSOR_BEDROOM_MAC=AA:BB:CC:DD:EE:02
+HT_SENSOR_KITCHEN_MAC=AA:BB:CC:DD:EE:03
+```
+
+Requires Bluetooth enabled on the host (`sudo rfkill unblock bluetooth`); the
+container reaches BlueZ via the `/run/dbus` mount in `docker-compose.yml`.
 
 ---
 
