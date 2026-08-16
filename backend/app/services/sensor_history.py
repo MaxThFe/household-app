@@ -48,7 +48,12 @@ async def list_series(db: aiosqlite.Connection) -> list[dict]:
     disappears from the app while its old rows stay on disk.
     """
     rooms = list(sensor_rooms().values())
-    async with db.execute("SELECT room, metric, unit FROM series ORDER BY id") as cur:
+    async with db.execute(
+        "SELECT s.room, s.metric, s.unit, "
+        "       MIN(r.ts) AS first_ts, MAX(r.ts) AS last_ts "
+        "FROM series s LEFT JOIN readings r ON r.series_id = s.id "
+        "GROUP BY s.id ORDER BY s.id"
+    ) as cur:
         found = [dict(row) for row in await cur.fetchall()]
     return sorted(
         (s for s in found if s["room"] in rooms),

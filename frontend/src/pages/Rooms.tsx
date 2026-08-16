@@ -1,11 +1,13 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { api, SensorHistory, SensorSeries } from '../api/client'
+import { api, SensorHistory, SensorSeriesInfo } from '../api/client'
 import LineChart, { ChartSeries } from '../components/LineChart'
 
 // Colour identifies the room; the two metrics live in separate charts, so a
-// single fixed order is all that is needed. Validated for CVD separation.
-const ROOM_COLORS = ['var(--accent-orange)', 'var(--accent-purple)', 'var(--accent-green)']
+// single fixed order is all that is needed. Darker than the app's accents so
+// white pill text clears 4.5:1 (5.4 / 6.9 / 5.3); still passes the CVD,
+// chroma and lightness-band checks.
+const ROOM_COLORS = ['#B8431F', '#534AB7', '#0F7A55']
 
 /** Local datetime in the format <input type="datetime-local"> expects. */
 function toLocalInput(d: Date): string {
@@ -33,15 +35,23 @@ export default function Rooms() {
     [params],
   )
 
-  // Write the defaults in once so the URL is always complete. Replace rather
-  // than push, or back would land on the bare /rooms again.
+  const [available, setAvailable] = useState<SensorSeriesInfo[]>([])
+
+  // Open on a range that actually holds data: the last 24 h, or the whole
+  // history when there is less than that. Written once the extent is known, so
+  // a fresh install does not stare at an empty 24 h window. Replace rather than
+  // push, or back would land on the bare /rooms again.
   useEffect(() => {
     if (params.get('from') && params.get('to')) return
+    if (!available.length) return
+    const starts = available.map(s => s.first_ts).filter((t): t is number => t !== null)
     const next = new URLSearchParams(params)
-    next.set('from', defaults.from)
+    next.set('from', starts.length
+      ? toLocalInput(new Date(Math.max(Date.now() - 24 * 3600_000, Math.min(...starts) * 1000)))
+      : defaults.from)
     next.set('to', defaults.to)
     setParams(next, { replace: true })
-  }, [])
+  }, [available])
 
   const update = (key: string, value: string) => {
     const next = new URLSearchParams(params)
@@ -50,7 +60,6 @@ export default function Rooms() {
     setParams(next)
   }
 
-  const [available, setAvailable] = useState<SensorSeries[]>([])
   const [history, setHistory] = useState<SensorHistory[]>([])
 
   // Rooms, metrics and units all come from /sensors/series, so nothing about
@@ -113,21 +122,18 @@ export default function Rooms() {
       </div>
 
       <div style={{ padding: '16px 20px' }}>
-        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-          <label style={{ flex: 1 }}>
-            <p className="section-label" style={{ marginBottom: 4 }}>From</p>
-            <input
-              type="datetime-local" className="form-input" value={start}
-              onChange={e => update('from', e.target.value)}
-            />
-          </label>
-          <label style={{ flex: 1 }}>
-            <p className="section-label" style={{ marginBottom: 4 }}>To</p>
-            <input
-              type="datetime-local" className="form-input" value={end}
-              onChange={e => update('to', e.target.value)}
-            />
-          </label>
+        {/* Full width rather than side by side: two datetime-locals in a 480px
+            column are too narrow to show the date and the clock together. */}
+        <div style={{ marginBottom: 16 }}>
+          {([['From', start, 'from'], ['To', end, 'to']] as const).map(([label, value, key]) => (
+            <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
+              <span className="section-label" style={{ width: 38, margin: 0 }}>{label}</span>
+              <input
+                type="datetime-local" className="form-input" style={{ flex: 1 }} value={value}
+                onChange={e => update(key, e.target.value)}
+              />
+            </label>
+          ))}
         </div>
 
         {metrics.map(metric => {
@@ -145,13 +151,23 @@ export default function Rooms() {
               <p className="section-label">{metric.label}</p>
 
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', margin: '6px 0 10px' }}>
-                {rooms.map(room => {
+                {/* The pills are the legend: an active one is filled with the
+                    line's colour, so the chart needs no separate key. */}
+                {rooms.map((room, i) => {
                   const key = `${room}:${metric.key}`
+                  const hidden = off.has(key)
                   return (
                     <button
                       key={key}
-                      className={`pill ${off.has(key) ? 'pill-inactive' : 'pill-active'}`}
+                      className="pill"
                       onClick={() => toggle(key)}
+                      style={{
+                        fontWeight: 500,
+                        color: hidden ? '#6B5D4D' : '#FFFFFF',
+                        background: hidden
+                          ? 'var(--bg-inactive)'
+                          : ROOM_COLORS[i % ROOM_COLORS.length],
+                      }}
                     >
                       {room}
                     </button>
@@ -171,6 +187,8 @@ export default function Rooms() {
                     start={from}
                     end={to}
                     gapSeconds={gapSeconds}
+                    // Half a degree matters; half a percent of humidity does not.
+                    decimals={metric.key === 'temperature' ? 1 : 0}
                   />
                 </div>
               )}

@@ -4,7 +4,7 @@ import aiosqlite
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.core.timeseries import get_timeseries_db
-from app.models.sensor import SensorHistory, SensorReading, SensorSeries
+from app.models.sensor import SensorHistory, SensorReading, SensorSeriesInfo
 from app.services.ble_sensors import get_readings
 from app.services.sensor_history import (
     DEFAULT_MAX_POINTS,
@@ -21,7 +21,7 @@ async def list_sensors():
     return get_readings()
 
 
-@router.get("/series", response_model=list[SensorSeries])
+@router.get("/series", response_model=list[SensorSeriesInfo])
 async def sensor_series(db: aiosqlite.Connection = Depends(get_timeseries_db)):
     return await list_series(db)
 

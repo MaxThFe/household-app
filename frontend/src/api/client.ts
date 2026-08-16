@@ -149,6 +149,12 @@ export interface SensorSeries {
   unit: string
 }
 
+export interface SensorSeriesInfo extends SensorSeries {
+  // Extent of stored history; null until the first sample lands.
+  first_ts: number | null
+  last_ts: number | null
+}
+
 export interface SensorHistory extends SensorSeries {
   // True when the range held more points than asked for and they were averaged.
   bucketed: boolean
@@ -164,7 +170,7 @@ export const api = {
 
   sensors: {
     list: () => request<SensorReading[]>(`${BASE}/sensors`),
-    series: () => request<SensorSeries[]>(`${BASE}/sensors/series`),
+    series: () => request<SensorSeriesInfo[]>(`${BASE}/sensors/series`),
     history: (start: Date, end: Date, series: string[]) => {
       const params = new URLSearchParams({
         start: start.toISOString(),
