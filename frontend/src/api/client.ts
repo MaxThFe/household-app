@@ -12,6 +12,15 @@ export function clearUser(): void {
   localStorage.removeItem('ht_user')
 }
 
+// Selected supermarket for the shopping list aisle order (view-only preference)
+export function getMarket(): string {
+  return localStorage.getItem('ht_market') ?? 'lidl'
+}
+
+export function setMarket(market: string): void {
+  localStorage.setItem('ht_market', market)
+}
+
 function authHeaders(): Record<string, string> {
   return { 'X-User': getUser(), 'Content-Type': 'application/json' }
 }
@@ -77,20 +86,24 @@ export interface ShoppingItem {
   is_manual: number
   added_at: string
   source_names: string | null
+  section: string
+}
+
+export interface SectionInfo {
+  slug: string
+  label: string
+}
+
+export interface MarketInfo {
+  slug: string
+  label: string
 }
 
 export interface ShoppingList {
   categories: Record<string, ShoppingItem[]>
-}
-
-export interface Houseplant {
-  id: number
-  name: string
-  watering_frequency_days: number
-  last_watered_at: string
-  image_data: string | null
-  created_at: string
-  days_until_due: number
+  sections: SectionInfo[]
+  markets: MarketInfo[]
+  section_orders: Record<string, string[]>
 }
 
 export interface CalendarEvent {
@@ -216,29 +229,12 @@ export const api = {
         headers: authHeaders(),
       })
     },
-  },
-
-  houseplants: {
-    list: () => request<Houseplant[]>(`${BASE}/houseplants`),
-    add: (data: { name: string; watering_frequency_days: number; image_data?: string | null }) =>
-      request<Houseplant>(`${BASE}/houseplants`, {
-        method: 'POST',
+    setSectionOrder: (market: string, order: string[]) =>
+      request<void>(`${BASE}/shopping/sections/order`, {
+        method: 'PUT',
         headers: authHeaders(),
-        body: JSON.stringify(data),
+        body: JSON.stringify({ market, order }),
       }),
-    update: (id: number, data: { name?: string; watering_frequency_days?: number; image_data?: string | null }) =>
-      request<Houseplant>(`${BASE}/houseplants/${id}`, {
-        method: 'PATCH',
-        headers: authHeaders(),
-        body: JSON.stringify(data),
-      }),
-    water: (id: number) =>
-      request<Houseplant>(`${BASE}/houseplants/${id}/water`, {
-        method: 'POST',
-        headers: authHeaders(),
-      }),
-    delete: (id: number) =>
-      request<void>(`${BASE}/houseplants/${id}`, { method: 'DELETE', headers: authHeaders() }),
   },
 
   vacuum: {

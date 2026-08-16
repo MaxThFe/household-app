@@ -6,6 +6,10 @@ import aiosqlite
 from app.core.config import settings
 
 SCHEMA_SQL = """
+-- Houseplants feature was removed; drop the leftover table.
+-- Safe to delete this statement once it has run in production.
+DROP TABLE IF EXISTS houseplants;
+
 CREATE TABLE IF NOT EXISTS recipes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     name TEXT NOT NULL,
@@ -56,13 +60,12 @@ CREATE TABLE IF NOT EXISTS calendar_events (
     notes TEXT DEFAULT ''
 );
 
-CREATE TABLE IF NOT EXISTS houseplants (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    watering_frequency_days INTEGER NOT NULL,
-    last_watered_at TEXT NOT NULL DEFAULT (datetime('now')),
-    image_data TEXT,
-    created_at TEXT DEFAULT (datetime('now'))
+-- Per-supermarket aisle order for the shopping list sections
+CREATE TABLE IF NOT EXISTS shopping_section_order (
+    market TEXT NOT NULL,
+    section TEXT NOT NULL,
+    position INTEGER NOT NULL,
+    PRIMARY KEY (market, section)
 );
 
 CREATE TABLE IF NOT EXISTS vacuum_overrides (

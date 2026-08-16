@@ -2,7 +2,16 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.core.auth import require_auth
 from app.core.database import get_db
-from app.models.shopping import ShoppingItemCreate, ShoppingItemUpdate, ShoppingItemResponse, ShoppingListResponse
+from app.models.shopping import (
+    MarketInfo,
+    SectionInfo,
+    SectionOrderUpdate,
+    ShoppingItemCreate,
+    ShoppingItemUpdate,
+    ShoppingItemResponse,
+    ShoppingListResponse,
+)
+from app.services import sections as sections_service
 
 router = APIRouter(prefix="/shopping", tags=["shopping"])
 
@@ -33,6 +42,7 @@ async def get_shopping_list(db=Depends(get_db)):
     categories: dict[str, list[ShoppingItemResponse]] = {}
     for row in rows:
         item = ShoppingItemResponse.model_validate(dict(row))
+        item.section = sections_service.classify(item.name)
         cat = item.store if item.store else "supermarket"
         categories.setdefault(cat, []).append(item)
 
@@ -44,7 +54,17 @@ async def get_shopping_list(db=Depends(get_db)):
     for cat in sorted(categories):
         ordered[cat] = categories[cat]
 
-    return ShoppingListResponse(categories=ordered)
+    return ShoppingListResponse(
+        categories=ordered,
+        sections=[
+            SectionInfo(slug=slug, label=label)
+            for slug, label in sections_service.SECTIONS
+        ],
+        markets=[
+            MarketInfo(slug=slug, label=label) for slug, label in sections_service.MARKETS
+        ],
+        section_orders=await sections_service.load_orders(db),
+    )
 
 
 @router.post("", response_model=ShoppingItemResponse, status_code=201)
@@ -59,7 +79,30 @@ async def add_shopping_item(
     await db.commit()
     async with db.execute("SELECT * FROM shopping_items WHERE id = ?", (item_id,)) as cur:
         item = await cur.fetchone()
-    return ShoppingItemResponse.model_validate(dict(item))
+
+    response = ShoppingItemResponse.model_validate(dict(item))
+    response.section = sections_service.classify(response.name)
+    return response
+
+
+# IMPORTANT: literal routes ("sections/order", "checked") must be registered
+# BEFORE the "/{item_id}" routes to avoid routing conflicts
+@router.put("/sections/order", status_code=204)
+async def set_section_order(
+    body: SectionOrderUpdate, db=Depends(get_db), _=Depends(require_auth)
+):
+    if body.market not in sections_service.MARKET_SLUGS:
+        raise HTTPException(status_code=400, detail="Unknown market")
+
+    order = [s for s in body.order if s in sections_service.SECTION_SLUGS]
+    await db.execute(
+        "DELETE FROM shopping_section_order WHERE market = ?", (body.market,)
+    )
+    await db.executemany(
+        "INSERT INTO shopping_section_order (market, section, position) VALUES (?, ?, ?)",
+        [(body.market, section, i) for i, section in enumerate(order)],
+    )
+    await db.commit()
 
 
 @router.patch("/{item_id}", response_model=ShoppingItemResponse)
@@ -72,20 +115,20 @@ async def update_shopping_item(
         raise HTTPException(status_code=404, detail="Item not found")
 
     updates = body.model_dump(exclude_unset=True)
-    if not updates:
-        return ShoppingItemResponse.model_validate(dict(row))
-
-    set_clause = ", ".join(f"{k} = ?" for k in updates)
-    values = list(updates.values()) + [item_id]
-    await db.execute(f"UPDATE shopping_items SET {set_clause} WHERE id = ?", values)
-    await db.commit()
+    if updates:
+        set_clause = ", ".join(f"{k} = ?" for k in updates)
+        values = list(updates.values()) + [item_id]
+        await db.execute(f"UPDATE shopping_items SET {set_clause} WHERE id = ?", values)
+        await db.commit()
 
     async with db.execute("SELECT * FROM shopping_items WHERE id = ?", (item_id,)) as cursor:
         updated = await cursor.fetchone()
-    return ShoppingItemResponse.model_validate(dict(updated))
+
+    response = ShoppingItemResponse.model_validate(dict(updated))
+    response.section = sections_service.classify(response.name)
+    return response
 
 
-# IMPORTANT: "checked" route must be registered BEFORE "/{item_id}" to avoid routing conflict
 @router.delete("/checked", status_code=204)
 async def delete_checked_items(
     ids: list[int] = Query(default=[]), db=Depends(get_db), _=Depends(require_auth)

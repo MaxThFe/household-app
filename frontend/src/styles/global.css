@@ -545,16 +545,17 @@ input, textarea {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-height: 26px;
   margin-bottom: 8px;
 }
 
-.shopping-group-header span:first-child {
+.shopping-group-header > span:first-child {
   font-size: 13px;
   font-weight: 500;
   color: var(--text-primary);
 }
 
-.shopping-group-header span:last-child {
+.shopping-group-header > span:last-child {
   font-size: 11px;
   color: var(--text-muted);
 }
@@ -564,6 +565,74 @@ input, textarea {
   border: 0.5px solid var(--border);
   border-radius: var(--radius-card);
   overflow: hidden;
+}
+
+.shopping-section-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 10px;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  padding: 3px 16px 0;
+  margin-bottom: -3px;
+}
+
+.shopping-section-header::before {
+  content: '';
+  flex: 1;
+  height: 0;
+  border-top: 0.5px solid var(--border);
+}
+
+.shopping-section-group:first-child .shopping-section-header {
+  padding-top: 5px;
+}
+
+/* Trim the row padding facing a section line on either side */
+.shopping-section-group .shopping-item-row:last-child {
+  padding-bottom: 8px;
+}
+
+.shopping-section-group .shopping-item-row:first-of-type {
+  padding-top: 8px;
+}
+
+/* Drag-to-reorder rows (aisle order sheet) */
+.section-order-row {
+  background: var(--bg-card);
+  transition: transform 0.15s ease;
+  touch-action: pan-y;
+  user-select: none;
+}
+
+.section-order-row.dragging {
+  transition: none;
+  position: relative;
+  z-index: 2;
+  border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.12);
+}
+
+.drag-handle {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 2px;
+  margin: -4px 0;
+  color: var(--text-muted);
+  cursor: grab;
+  /* Stop the browser scrolling while a touch drag is in progress */
+  touch-action: none;
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+  color: var(--text-secondary);
+}
+
+/* The divider above each section already separates it from the row above */
+.shopping-section-group .shopping-item-row:last-child {
+  border-bottom: none;
 }
 
 .shopping-item-row {
