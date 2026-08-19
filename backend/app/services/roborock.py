@@ -116,10 +116,10 @@ async def wash_mop_then_goto() -> None:
             logger.info("Mop washing started on %s", device.name)
 
             # Give the robot a moment to actually enter the washing state.
-            await asyncio.sleep(5)
+            await asyncio.sleep(20)
 
             # Poll until washing finishes, with a safety timeout (~5 min).
-            for _ in range(30):
+            for _ in range(60):
                 status = await command.send(RoborockCommand.GET_STATUS)
                 state = _extract_state(status)
                 if state not in _WASHING_STATES:
