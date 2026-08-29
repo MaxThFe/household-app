@@ -154,7 +154,10 @@ async def wash_mop_then_goto() -> None:
 
 def _extract_state(status) -> int | None:
     """Pull the integer state code out of a GET_STATUS response, which may be a
-    dataclass with a ``state`` attribute or a raw dict."""
+    dataclass with a ``state`` attribute, a raw dict, or a single-element list
+    wrapping that dict."""
+    if isinstance(status, list):
+        status = status[0] if status else None
     state = getattr(status, "state", None)
     if state is None and isinstance(status, dict):
         state = status.get("state")
