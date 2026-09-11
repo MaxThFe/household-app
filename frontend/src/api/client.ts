@@ -159,6 +159,9 @@ export interface SensorHistory extends SensorSeries {
   // True when the range held more points than asked for and they were averaged.
   bucketed: boolean
   points: [number, number][]
+  // Moments a window looks to have been opened, from the raw rows. Temperature
+  // only; every other metric carries an empty list.
+  openings: number[]
 }
 
 // --- API methods ---

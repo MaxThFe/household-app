@@ -12,7 +12,9 @@ from datetime import datetime
 import aiosqlite
 
 from app.core import timeseries
+from app.core.config import settings
 from app.services.ble_sensors import get_readings, sensor_rooms
+from app.services.window_openings import WINDOW_SECONDS, detect_window_openings
 
 logger = logging.getLogger(__name__)
 
@@ -110,7 +112,14 @@ async def fetch_history(
     ) as cur:
         row = await cur.fetchone()
     if row is None:
-        return {"room": room, "metric": metric, "unit": "", "bucketed": False, "points": []}
+        return {
+            "room": room,
+            "metric": metric,
+            "unit": "",
+            "bucketed": False,
+            "points": [],
+            "openings": [],
+        }
 
     params = {"sid": row["id"], "start": start, "end": end}
     where = "FROM readings WHERE series_id = :sid AND ts >= :start AND ts < :end"
@@ -133,7 +142,35 @@ async def fetch_history(
         "unit": row["unit"],
         "bucketed": bucketed,
         "points": points,
+        # Temperature only: a window is read off the temperature curve, and
+        # the other metrics simply carry an empty list.
+        "openings": (
+            await fetch_openings(db, row["id"], start, end)
+            if metric == "temperature"
+            else []
+        ),
     }
+
+
+async def fetch_openings(
+    db: aiosqlite.Connection, sid: int, start: int, end: int
+) -> list[int]:
+    """Window openings inside a range, found on the raw rows.
+
+    Always the raw rows, even when the chart itself is bucketed, so a marker
+    sits at the same moment however far the range is zoomed out. The query
+    reaches two windows back before the start, or an opening at the left edge
+    would have nothing to compare against.
+    """
+    async with db.execute(
+        "SELECT ts, value FROM readings "
+        "WHERE series_id = :sid AND ts >= :lead AND ts < :end ORDER BY ts",
+        {"sid": sid, "lead": start - 2 * WINDOW_SECONDS, "end": end},
+    ) as cur:
+        rows = [(r["ts"], r["value"]) for r in await cur.fetchall()]
+
+    found = detect_window_openings(rows, settings.window_open_drop_c)
+    return [ts for ts in found if start <= ts < end]
 
 
 async def run_sensor_sampler_loop() -> None:

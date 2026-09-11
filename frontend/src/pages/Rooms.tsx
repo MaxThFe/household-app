@@ -139,12 +139,17 @@ export default function Rooms() {
         {metrics.map(metric => {
           const series: ChartSeries[] = rooms
             .filter(room => !off.has(`${room}:${metric.key}`))
-            .map(room => ({
-              key: `${room}:${metric.key}`,
-              label: room,
-              color: ROOM_COLORS[rooms.indexOf(room) % ROOM_COLORS.length],
-              points: history.find(h => h.room === room && h.metric === metric.key)?.points ?? [],
-            }))
+            .map(room => {
+              const entry = history.find(h => h.room === room && h.metric === metric.key)
+              return {
+                key: `${room}:${metric.key}`,
+                label: room,
+                color: ROOM_COLORS[rooms.indexOf(room) % ROOM_COLORS.length],
+                points: entry?.points ?? [],
+                // Only temperature comes back with any, so nothing is gated here.
+                openings: entry?.openings ?? [],
+              }
+            })
 
           return (
             <div key={metric.key} style={{ marginBottom: 20 }}>

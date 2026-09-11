@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     sensor_stale_after_minutes: int = 30
     # Sensor history, kept in its own SQLite file.
     timeseries_path: str = "data/sensors.db"
+    # A window opening reads as a break in the slope: the fall over the last
+    # 20 minutes this much steeper, in °C, than over the 20 minutes before it.
+    window_open_drop_c: float = 0.6
 
 
 settings = Settings()

@@ -31,3 +31,7 @@ class SensorHistory(SensorSeries):
     # into buckets; the stored rows are untouched either way.
     bucketed: bool
     points: list[list[float]]
+    # Moments a window looks to have been opened. Empty for every metric but
+    # temperature, and always derived from the raw rows rather than the points
+    # above, so the markers do not move when a wide range gets bucketed.
+    openings: list[int] = []
