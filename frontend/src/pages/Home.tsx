@@ -6,7 +6,16 @@ import { SettingsSidebar } from '../components/SettingsSidebar'
 export default function Home() {
   const navigate = useNavigate()
   const today = todayISO()
-  const weekStr = toISOWeek(new Date())
+
+  // Today plus the next 3 days; near a weekend or month end these span two
+  // ISO weeks or months, so fetch by the dates themselves, not the current week.
+  const days = Array.from({ length: 4 }, (_, i) => {
+    const d = new Date()
+    d.setDate(d.getDate() + i)
+    return d
+  })
+  const lastDay = dateISO(days[3])
+  const weeks = [...new Set(days.map(toISOWeek))]
 
   const [meals, setMeals] = useState<Meal[]>([])
   const [events, setEvents] = useState<CalendarEvent[]>([])
@@ -15,17 +24,16 @@ export default function Home() {
   const [showSettings, setShowSettings] = useState(false)
 
   useEffect(() => {
-    const month = today.slice(0, 7)
     Promise.all([
-      api.meals.list(weekStr),
-      api.calendar.list({ month }),
+      Promise.all(weeks.map(w => api.meals.list(w))),
+      api.calendar.list({ start: today, end: lastDay }),
       api.shopping.list(),
     ]).then(([m, e, s]) => {
-      setMeals(m)
+      setMeals(m.flat())
       setEvents(e)
       setShopping(Object.values(s.categories).flat())
     }).catch(() => {})
-  }, [weekStr, today])
+  }, [today])
 
   // Sensor readings go stale quickly, so keep them ticking over on their own.
   useEffect(() => {
@@ -40,9 +48,7 @@ export default function Home() {
   const todayMeal = meals.find(m => m.date === today)
 
   // Next 3 days after today
-  const upcoming = Array.from({ length: 3 }, (_, i) => {
-    const d = new Date(today)
-    d.setDate(d.getDate() + i + 1)
+  const upcoming = days.slice(1).map(d => {
     const date = dateISO(d)
     const meal = meals.find(m => m.date === date)
     const shift = events.find(e => e.date === date && e.source === 'ics')
