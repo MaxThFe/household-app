@@ -13,6 +13,7 @@ dependencies = [
     "python-dateutil>=2.9.0",
     "python-roborock>=2.0.0",
     "bleak>=0.22.0",
+    "recurring-ical-events>=3.0",
 ]
 
 [build-system]

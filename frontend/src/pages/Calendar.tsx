@@ -132,6 +132,7 @@ export default function CalendarPage() {
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null)
 
   const today = todayISO()
+  const user2Name = config?.user2_name ?? 'Margaux'
   const currentWeek = toISOWeek(new Date())
   const isCurrentWeek = week === currentWeek
   const monday = getMondayFromWeek(week)
@@ -238,10 +239,14 @@ export default function CalendarPage() {
         </div>
 
         {/* Legend */}
-        <div style={{ display: 'flex', gap: 16, marginTop: 14 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginTop: 14 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#D85A30' }} />
-            <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{config?.user2_name ?? 'Margaux'}</span>
+            <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{user2Name} · shifts</span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#2F8F8A' }} />
+            <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{user2Name} · calendar</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#534AB7' }} />

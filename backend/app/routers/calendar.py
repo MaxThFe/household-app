@@ -7,7 +7,11 @@ from app.services.ics_sync import sync_ics
 
 router = APIRouter(prefix="/calendar", tags=["calendar"])
 
-ICS_SOURCES = {"ics", "google"}
+ICS_SOURCES = {"ics", "ics_general", "google"}
+
+# A shift anchors the day, so it leads the day's events whatever time it
+# starts at — ahead of all-day events, which sort first on start_time alone.
+ORDER_BY = "ORDER BY date, CASE WHEN source = 'ics' THEN 0 ELSE 1 END, start_time"
 
 
 @router.get("", response_model=list[CalendarEventResponse])
@@ -19,19 +23,19 @@ async def list_events(
 ):
     if start and end:
         async with db.execute(
-            "SELECT * FROM calendar_events WHERE date BETWEEN ? AND ? ORDER BY date, start_time",
+            f"SELECT * FROM calendar_events WHERE date BETWEEN ? AND ? {ORDER_BY}",
             (start, end),
         ) as cursor:
             events = await cursor.fetchall()
     elif month:
         async with db.execute(
-            "SELECT * FROM calendar_events WHERE date LIKE ? ORDER BY date, start_time",
+            f"SELECT * FROM calendar_events WHERE date LIKE ? {ORDER_BY}",
             (f"{month}%",),
         ) as cursor:
             events = await cursor.fetchall()
     else:
         async with db.execute(
-            "SELECT * FROM calendar_events ORDER BY date, start_time"
+            f"SELECT * FROM calendar_events {ORDER_BY}"
         ) as cursor:
             events = await cursor.fetchall()
     return [CalendarEventResponse.model_validate(dict(e)) for e in events]
