@@ -242,11 +242,11 @@ export default function CalendarPage() {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, marginTop: 14 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#D85A30' }} />
-            <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{user2Name} · shifts</span>
+            <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Shifts</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#2F8F8A' }} />
-            <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{user2Name} · calendar</span>
+            <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{user2Name}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#534AB7' }} />
