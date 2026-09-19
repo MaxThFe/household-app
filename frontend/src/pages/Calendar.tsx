@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { Fragment, useState, useEffect, useCallback } from 'react'
 import { api, CalendarEvent, toISOWeek, offsetWeek, getMondayFromWeek, formatDateRange, todayISO, dateISO } from '../api/client'
 import { useAuth } from '../App'
 import { Modal } from '../components/Modal'
@@ -23,6 +23,22 @@ function EventRow({ event, dark, onClick }: { event: CalendarEvent; dark?: boole
         )}
       </p>
     </div>
+  )
+}
+
+// The shift leads the day; a thin line sets it apart from the rest.
+function DayEvents({ events, dark, onEdit }: { events: CalendarEvent[]; dark?: boolean; onEdit: (e: CalendarEvent) => void }) {
+  return (
+    <>
+      {events.map((e, i) => (
+        <Fragment key={e.id}>
+          {i > 0 && events[i - 1].source === 'ics' && e.source !== 'ics' && (
+            <div style={{ height: 1, margin: '2px 0', background: dark ? 'rgba(245, 237, 228, 0.2)' : 'var(--border)' }} />
+          )}
+          <EventRow event={e} dark={dark} onClick={() => onEdit(e)} />
+        </Fragment>
+      ))}
+    </>
   )
 }
 
@@ -200,7 +216,7 @@ export default function CalendarPage() {
                   </div>
                   <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
                     {dayEvents.length > 0 ? (
-                      dayEvents.map(e => <EventRow key={e.id} event={e} dark onClick={() => setEditingEvent(e)} />)
+                      <DayEvents events={dayEvents} dark onEdit={setEditingEvent} />
                     ) : (
                       <p style={{ fontSize: 13, color: 'var(--text-on-dark-muted)', fontStyle: 'italic' }}>No events</p>
                     )}
@@ -219,7 +235,7 @@ export default function CalendarPage() {
                 </div>
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 4 }}>
                   {dayEvents.length > 0 ? (
-                    dayEvents.map(e => <EventRow key={e.id} event={e} onClick={() => setEditingEvent(e)} />)
+                    <DayEvents events={dayEvents} onEdit={setEditingEvent} />
                   ) : (
                     <p style={{ fontSize: 13, color: 'var(--text-muted)', fontStyle: 'italic' }}>No events</p>
                   )}
