@@ -1,8 +1,13 @@
-"""Tests for the BTHome v2 advertisement decoder.
+"""Tests for the BTHome v2 advertisement decoder and the scan watchdog.
 
 Payloads here are synthetic, hand-built to the BTHome v2 spec.
 """
 
+import asyncio
+
+import pytest
+
+from app.services import ble_sensors
 from app.services.ble_sensors import decode_bthome_v2
 
 # device info 0x40 (v2, unencrypted), packet id, battery 50%,
@@ -53,3 +58,30 @@ def test_stops_cleanly_on_truncated_measurement():
 def test_returns_none_when_nothing_decodable():
     # Device info only followed by an unknown object id.
     assert decode_bthome_v2(bytes.fromhex("40ff00")) is None
+
+
+class _FakeScanner:
+    """Stands in for BleakScanner: starts fine, then delivers nothing."""
+
+    def __init__(self, callback, **kwargs):
+        pass
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *exc):
+        return False
+
+
+@pytest.mark.asyncio
+async def test_scan_gives_up_on_a_silent_session(monkeypatch):
+    # A scan session that starts but never delivers used to park inside the
+    # context manager for an hour at a time, so a deploy or a bluetoothd
+    # restart left the sensors silent until the process was restarted.
+    import bleak
+
+    monkeypatch.setattr(bleak, "BleakScanner", _FakeScanner)
+    monkeypatch.setattr(ble_sensors, "_WATCHDOG_INTERVAL_SECONDS", 0)
+    monkeypatch.setattr(ble_sensors, "SILENCE_LIMIT_SECONDS", 0)
+
+    await asyncio.wait_for(ble_sensors._scan(passive=False), timeout=5)

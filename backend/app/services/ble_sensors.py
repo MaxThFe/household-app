@@ -10,6 +10,7 @@ nothing is persisted.
 
 import asyncio
 import logging
+import time
 from datetime import datetime, timezone
 
 from app.core.config import settings
@@ -101,8 +102,18 @@ def _on_advertisement(device, advertisement_data) -> None:
     reading["rssi"] = advertisement_data.rssi
     reading["last_seen"] = datetime.now(timezone.utc).isoformat(timespec="seconds")
 
+    global _last_advert
+    _last_advert = time.monotonic()
+
 
 _readings: dict[str, dict] = {}
+
+# A scan session can go deaf without failing: BlueZ drops the discovery when
+# bluetoothd restarts or the adapter stalls, and bleak keeps waiting on a feed
+# that will never resume. Silence for this long means rebuild the scanner.
+SILENCE_LIMIT_SECONDS = 600
+_WATCHDOG_INTERVAL_SECONDS = 30
+_last_advert = 0.0
 
 
 def get_readings() -> list[dict]:
@@ -157,14 +168,24 @@ async def _scan(passive: bool) -> None:
             ]
         )
 
+    global _last_advert
+
     async with BleakScanner(_on_advertisement, **kwargs):
         logger.info(
             "BLE sensor scanner running (%s) for %s",
             "passive" if passive else "active",
             ", ".join(sensor_rooms().values()),
         )
+        _last_advert = time.monotonic()
         while True:
-            await asyncio.sleep(3600)
+            await asyncio.sleep(_WATCHDOG_INTERVAL_SECONDS)
+            silent_for = time.monotonic() - _last_advert
+            if silent_for > SILENCE_LIMIT_SECONDS:
+                logger.warning(
+                    "No sensor advertisement for %.0fs, restarting the scanner",
+                    silent_for,
+                )
+                return
 
 
 async def run_ble_sensor_loop() -> None:
@@ -177,6 +198,8 @@ async def run_ble_sensor_loop() -> None:
     passive = True
     while True:
         try:
+            # _scan only returns when its watchdog gave up on a silent session;
+            # loop straight back into a fresh scanner in the same mode.
             await _scan(passive)
         except asyncio.CancelledError:
             raise
