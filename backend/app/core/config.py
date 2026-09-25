@@ -8,6 +8,9 @@ class Settings(BaseSettings):
     # Margaux's work shifts, one feed, and her general calendar in another.
     ics_url: str = ""
     ics_general_url: str = ""
+    # Max's work calendar: only the events that reach into the household's
+    # evening, plus whole days away — see WORK_EVENING_FROM in ics_sync.
+    ics_work_url: str = ""
     ics_sync_interval_minutes: int = 30
     user1_name: str = "User1"
     user2_name: str = "User2"

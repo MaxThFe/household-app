@@ -1,8 +1,10 @@
 import asyncio
 import logging
+import re
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
+from difflib import SequenceMatcher
 
 import aiosqlite
 import httpx
@@ -15,6 +17,15 @@ logger = logging.getLogger(__name__)
 
 MARGAUX_SHIFT_COLOR = "#D85A30"
 MARGAUX_GENERAL_COLOR = "#2F8F8A"
+# Work events are Max's, so they carry the same colour as his own entries.
+MAX_COLOR = "#534AB7"
+
+# Only the part of the work calendar the household is affected by: events
+# running into the evening, and whole days away.
+WORK_EVENING_FROM = "17:00"
+# A deadline is a date, not a day away, so those whole days are dropped. Titles
+# are typed by hand, so match the word loosely enough to catch a typo.
+DEADLINE_SIMILARITY = 0.85
 
 # Repeating events have no natural end, so the general feed is only expanded
 # over this window around today.
@@ -96,7 +107,7 @@ def _local(value: datetime) -> datetime:
     return value.astimezone().replace(tzinfo=None)
 
 
-def _general_rows(cal: Calendar, today: date | None = None) -> Iterator[Row]:
+def _general_rows(cal: Calendar, today: date | None = None, prefix: str = "general") -> Iterator[Row]:
     today = today or date.today()
     # Yearly series are birthday and anniversary reminders, not plans. Their
     # one-off changes share the series UID, so drop by UID, not by component.
@@ -119,7 +130,7 @@ def _general_rows(cal: Calendar, today: date | None = None) -> Iterator[Row]:
         # occurrence tells them apart and survives it being moved.
         recurrence_id = occurrence.get("RECURRENCE-ID")
         key = (recurrence_id.dt if recurrence_id else dtstart).isoformat()
-        row_uid = f"general:{uid}:{key}"
+        row_uid = f"{prefix}:{uid}:{key}"
         notes = str(occurrence.get("DESCRIPTION", ""))
         title = summary or "Busy"
 
@@ -148,6 +159,35 @@ def _general_rows(cal: Calendar, today: date | None = None) -> Iterator[Row]:
         yield Row(row_uid, start.date().isoformat(), start.strftime("%H:%M"), end_time, 0, title, notes)
 
 
+def _reads_as_deadline(title: str) -> bool:
+    """True if a word of the title is "deadline", however it is spelled."""
+    return any(
+        SequenceMatcher(None, word, "deadline").ratio() >= DEADLINE_SIMILARITY
+        for word in re.findall(r"[a-z]+", title.lower())
+    )
+
+
+def _runs_into_the_evening(row: Row) -> bool:
+    if row.start_time is None:
+        return False
+    if row.start_time >= WORK_EVENING_FROM:
+        return True
+    if row.end_time is None:
+        return False
+    # An end before the start is the morning after, so the evening is covered.
+    return row.end_time > WORK_EVENING_FROM or row.end_time < row.start_time
+
+
+def _work_rows(cal: Calendar, today: date | None = None) -> Iterator[Row]:
+    """The work calendar, minus the events the household is unaffected by."""
+    for row in _general_rows(cal, today, prefix="work"):
+        if row.all_day:
+            if not _reads_as_deadline(row.title):
+                yield row
+        elif _runs_into_the_evening(row):
+            yield row
+
+
 @dataclass(frozen=True)
 class IcsFeed:
     """One ICS feed, owning its own rows in calendar_events via `source`."""
@@ -164,6 +204,8 @@ def _feeds() -> list[IcsFeed]:
         feeds.append(IcsFeed("ics", settings.ics_url, MARGAUX_SHIFT_COLOR, _shift_rows))
     if settings.ics_general_url:
         feeds.append(IcsFeed("ics_general", settings.ics_general_url, MARGAUX_GENERAL_COLOR, _general_rows))
+    if settings.ics_work_url:
+        feeds.append(IcsFeed("ics_work", settings.ics_work_url, MAX_COLOR, _work_rows))
     return feeds
 
 

@@ -32,6 +32,7 @@ docker run -d \
   -e HT_USER2_NAME=UserName2 \
   -e HT_ICS_URL=<your-shift-ics-url> \
   -e HT_ICS_GENERAL_URL=<your-general-ics-url> \
+  -e HT_ICS_WORK_URL=<your-work-ics-url> \
   -e HT_ICS_SYNC_INTERVAL_MINUTES=30 \
   ghcr.io/maxthfe/household-app/backend:latest
 ```

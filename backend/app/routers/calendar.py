@@ -7,7 +7,7 @@ from app.services.ics_sync import sync_ics
 
 router = APIRouter(prefix="/calendar", tags=["calendar"])
 
-ICS_SOURCES = {"ics", "ics_general", "google"}
+ICS_SOURCES = {"ics", "ics_general", "ics_work", "google"}
 
 # A shift anchors the day, so it leads the day's events whatever time it
 # starts at — ahead of all-day events, which sort first on start_time alone.
