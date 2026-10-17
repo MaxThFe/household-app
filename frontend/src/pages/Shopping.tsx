@@ -225,7 +225,7 @@ function ShoppingRow({ item, onCheck, onEdit, pendingIds }: ShoppingRowProps) {
     <div className="shopping-item-row" style={{ opacity: isPending ? 0.4 : 1, transition: 'opacity 0.2s' }}>
       <input
         type="checkbox"
-        className="shopping-checkbox"
+        className="checkbox"
         checked={isPending}
         onChange={() => onCheck(item)}
       />

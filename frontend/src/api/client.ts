@@ -106,6 +106,18 @@ export interface ShoppingList {
   section_orders: Record<string, string[]>
 }
 
+export type RecurUnit = 'day' | 'week' | 'month'
+
+export interface Task {
+  id: number
+  title: string
+  // null for a one-off task; otherwise it repeats every recur_every units.
+  recur_unit: RecurUnit | null
+  recur_every: number
+  // Internal bookkeeping, never shown as a date: null means "wanted now".
+  next_due: string | null
+}
+
 export interface CalendarEvent {
   id: number
   date: string
@@ -267,6 +279,32 @@ export const api = {
       }),
   },
 
+  tasks: {
+    list: () => request<Task[]>(`${BASE}/tasks`),
+    add: (data: { title: string; recur_unit?: RecurUnit | null; recur_every?: number }) =>
+      request<Task>(`${BASE}/tasks`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify(data),
+      }),
+    update: (id: number, data: { title?: string; recur_unit?: RecurUnit | null; recur_every?: number }) =>
+      request<Task>(`${BASE}/tasks/${id}`, {
+        method: 'PATCH',
+        headers: authHeaders(),
+        body: JSON.stringify(data),
+      }),
+    // The local date goes along, so a chore ticked off at midnight recurs from
+    // the day the household is having, not the server's.
+    complete: (id: number) =>
+      request<void>(`${BASE}/tasks/${id}/complete`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ completed_on: todayISO() }),
+      }),
+    delete: (id: number) =>
+      request<void>(`${BASE}/tasks/${id}`, { method: 'DELETE', headers: authHeaders() }),
+  },
+
   vacuum: {
     schedule: (start: string, end: string) =>
       request<VacuumScheduleEntry[]>(`${BASE}/vacuum/schedule?start=${start}&end=${end}`),
@@ -373,6 +411,22 @@ export function dateISO(d: Date): string {
 
 export function todayISO(): string {
   return dateISO(new Date())
+}
+
+// --- Task helpers ---
+
+/** On the board? One-offs always are; a recurring chore once its period is up. */
+export function isTaskDue(task: Task, today: string = todayISO()): boolean {
+  return !task.next_due || task.next_due <= today
+}
+
+/** "Weekly", "Every 3 months", or "" for a one-off. */
+export function recurrenceLabel(task: Pick<Task, 'recur_unit' | 'recur_every'>): string {
+  if (!task.recur_unit) return ''
+  if (task.recur_every === 1) {
+    return { day: 'Daily', week: 'Weekly', month: 'Monthly' }[task.recur_unit]
+  }
+  return `Every ${task.recur_every} ${task.recur_unit}s`
 }
 
 export function greeting(): string {

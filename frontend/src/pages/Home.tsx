@@ -1,7 +1,11 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { api, CalendarEvent, Meal, SensorReading, ShoppingItem, toISOWeek, todayISO, dateISO, greeting } from '../api/client'
+import { api, CalendarEvent, Meal, SensorReading, ShoppingItem, Task, isTaskDue, toISOWeek, todayISO, dateISO, greeting } from '../api/client'
 import { SettingsSidebar } from '../components/SettingsSidebar'
+import { TaskRow, useTaskCompletion } from '../components/TaskRow'
+
+// Enough of the board to act on at a glance; the rest is one tap away.
+const BOARD_LIMIT = 3
 
 export default function Home() {
   const navigate = useNavigate()
@@ -21,7 +25,18 @@ export default function Home() {
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [shopping, setShopping] = useState<ShoppingItem[]>([])
   const [sensors, setSensors] = useState<SensorReading[]>([])
+  const [tasks, setTasks] = useState<Task[]>([])
   const [showSettings, setShowSettings] = useState(false)
+
+  // Tasks reload on their own after a tick-off, so they are not part of the
+  // one-shot fetch below.
+  const loadTasks = useCallback(() => {
+    api.tasks.list().then(setTasks).catch(() => {})
+  }, [])
+
+  useEffect(() => { loadTasks() }, [loadTasks])
+
+  const { pendingIds, check, toastNode } = useTaskCompletion(loadTasks)
 
   useEffect(() => {
     Promise.all([
@@ -57,6 +72,11 @@ export default function Home() {
 
   const shoppingPreview = shopping.slice(0, 4)
   const shoppingExtra = shopping.length > 4 ? shopping.length - 4 : 0
+
+  // Recurring chores only surface here once they are wanted again.
+  const dueTasks = tasks.filter(t => isTaskDue(t))
+  const taskPreview = dueTasks.slice(0, BOARD_LIMIT)
+  const taskExtra = dueTasks.length - taskPreview.length
 
   const todayFormatted = new Date().toLocaleDateString('en-GB', {
     weekday: 'long', day: 'numeric', month: 'long',
@@ -164,7 +184,7 @@ export default function Home() {
 
         {/* Room climate */}
         {sensors.length > 0 && (
-          <div>
+          <div style={{ marginBottom: 20 }}>
             <p className="section-label">Rooms</p>
             <div style={{ display: 'flex', gap: 8 }}>
               {sensors.map(sensor => (
@@ -197,7 +217,50 @@ export default function Home() {
           </div>
         )}
 
+        {/* Task board */}
+        <div>
+          <div
+            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, cursor: 'pointer' }}
+            onClick={() => navigate('/tasks')}
+          >
+            <p className="section-label" style={{ margin: 0 }}>Tasks</p>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--text-muted)' }}>
+              {dueTasks.length > 0 ? `${dueTasks.length} to do` : 'Nothing to do'}
+              <ChevronRight />
+            </span>
+          </div>
+          {taskPreview.length === 0 ? (
+            <div className="card-dashed" onClick={() => navigate('/tasks')}>
+              + Add a task
+            </div>
+          ) : (
+            <div className="list-card">
+              {taskPreview.map(task => (
+                <TaskRow
+                  key={task.id}
+                  task={task}
+                  pending={pendingIds.has(task.id)}
+                  onCheck={check}
+                  // The board is for ticking off; editing lives on the page.
+                  onEdit={() => navigate('/tasks')}
+                />
+              ))}
+              {taskExtra > 0 && (
+                <div
+                  className="list-row"
+                  style={{ cursor: 'pointer', fontSize: 12, color: 'var(--text-muted)' }}
+                  onClick={() => navigate('/tasks')}
+                >
+                  +{taskExtra} more
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
       </div>
+
+      {toastNode}
     </div>
   )
 }

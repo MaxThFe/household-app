@@ -68,6 +68,19 @@ CREATE TABLE IF NOT EXISTS shopping_section_order (
     PRIMARY KEY (market, section)
 );
 
+-- Household to-do board. No due dates: a one-off sits on the board until it is
+-- ticked off (and is then deleted), a recurring chore goes quiet until
+-- next_due comes round. next_due is internal bookkeeping only — null means the
+-- task is wanted now, which is also how every task starts out.
+CREATE TABLE IF NOT EXISTS tasks (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    recur_unit TEXT,
+    recur_every INTEGER NOT NULL DEFAULT 1,
+    next_due TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS vacuum_overrides (
     date TEXT PRIMARY KEY,
     clean_time TEXT,

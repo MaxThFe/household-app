@@ -276,8 +276,8 @@ input, textarea {
   color: var(--text-secondary);
 }
 
-/* Checkbox (shopping) */
-.shopping-checkbox {
+/* Checkbox (shopping list, task board) */
+.checkbox {
   width: 22px;
   height: 22px;
   border-radius: 6px;
@@ -289,7 +289,7 @@ input, textarea {
   background: white;
 }
 
-.shopping-checkbox:checked {
+.checkbox:checked {
   background: var(--accent-green);
   border-color: var(--accent-green);
 }
@@ -644,6 +644,27 @@ input, textarea {
 }
 
 .shopping-item-row:last-child {
+  border-bottom: none;
+}
+
+/* Plain list card and rows (tasks). The shopping list keeps its own variant,
+   which carries the extra padding rules for its aisle dividers. */
+.list-card {
+  background: white;
+  border: 0.5px solid var(--border);
+  border-radius: var(--radius-card);
+  overflow: hidden;
+}
+
+.list-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 16px;
+  border-bottom: 0.5px solid var(--border);
+}
+
+.list-row:last-child {
   border-bottom: none;
 }
 
