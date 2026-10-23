@@ -34,6 +34,17 @@ class Settings(BaseSettings):
     # A window opening reads as a break in the slope: the fall over the last
     # 20 minutes this much steeper, in °C, than over the 20 minutes before it.
     window_open_drop_c: float = 0.6
+    # Picnic (NL) for ordering the shopping list: one account per user, so an
+    # order lands in the cart of whoever places it. Leave a user's email empty
+    # if they have none. Run picnic_setup.py once per user for the SMS code.
+    picnic_user1_email: str = ""
+    picnic_user1_password: str = ""
+    picnic_user2_email: str = ""
+    picnic_user2_password: str = ""
+    picnic_country_code: str = "NL"
+    # OpenAI maps shopping items to Picnic products; each mapping is cached.
+    openai_api_key: str = ""
+    openai_model: str = "gpt-6-luna"
 
 
 settings = Settings()

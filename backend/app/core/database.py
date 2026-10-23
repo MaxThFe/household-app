@@ -81,6 +81,40 @@ CREATE TABLE IF NOT EXISTS tasks (
     created_at TEXT DEFAULT (datetime('now'))
 );
 
+-- Shopping item -> Picnic product, worked out once by the LLM (or picked by
+-- hand) and then reused. item_key is the lowercased item name; recipe_id 0 is
+-- the mapping for every recipe, any other id overrides it for that recipe.
+-- The product is a specific pack (500 g or 1 kg); quantities count packs.
+CREATE TABLE IF NOT EXISTS picnic_mappings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    item_key TEXT NOT NULL,
+    recipe_id INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL,
+    product_id TEXT,
+    product_name TEXT,
+    unit_quantity TEXT DEFAULT '',
+    price INTEGER,
+    image_id TEXT,
+    source TEXT DEFAULT 'llm',
+    updated_at TEXT DEFAULT (datetime('now')),
+    UNIQUE (item_key, recipe_id)
+);
+
+-- What the LLM could not decide on its own. candidates is a JSON list of
+-- product cards to pick from; an answered question is kept as context for
+-- the next attempt at that item.
+CREATE TABLE IF NOT EXISTS picnic_questions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    item_key TEXT NOT NULL,
+    recipe_id INTEGER NOT NULL DEFAULT 0,
+    recipe_names TEXT DEFAULT '',
+    question TEXT NOT NULL,
+    candidates TEXT DEFAULT '[]',
+    answer TEXT,
+    status TEXT NOT NULL DEFAULT 'open',
+    created_at TEXT DEFAULT (datetime('now'))
+);
+
 CREATE TABLE IF NOT EXISTS vacuum_overrides (
     date TEXT PRIMARY KEY,
     clean_time TEXT,

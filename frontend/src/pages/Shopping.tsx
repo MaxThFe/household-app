@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { api, getMarket, setMarket, MarketInfo, SectionInfo, ShoppingItem, ShoppingList } from '../api/client'
 import { Modal } from '../components/Modal'
+import { PicnicSheet } from '../components/PicnicSheet'
 import { SectionOrderSheet } from '../components/SectionOrderSheet'
 import { Toast } from '../components/Toast'
 
@@ -315,10 +316,13 @@ export default function Shopping() {
   const [pendingIds, setPendingIds] = useState<Set<number>>(new Set())
   const [toast, setToast] = useState<{ item: ShoppingItem } | null>(null)
   const [market, setMarketState] = useState(getMarket())
+  const [showPicnic, setShowPicnic] = useState(false)
+  const [picnicQuestions, setPicnicQuestions] = useState(0)
   const pendingTimers = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map())
 
   const loadList = useCallback(() => {
     api.shopping.list().then(data => { setList(data); setLoading(false) }).catch(() => setLoading(false))
+    api.picnic.status().then(s => setPicnicQuestions(s.open_questions)).catch(() => {})
   }, [])
 
   useEffect(() => { loadList() }, [loadList])
@@ -410,11 +414,29 @@ export default function Shopping() {
               {totalItems} {totalItems === 1 ? 'item' : 'items'}
             </p>
           </div>
-          <button className="add-btn" title="Add item" onClick={() => setShowAddModal(true)}>
-            <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-              <path d="M9 3v12M3 9h12" stroke="var(--text-on-dark)" strokeWidth="1.5" strokeLinecap="round" />
-            </svg>
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {totalItems > 0 && (
+              <button className="pill pill-inactive" style={{ gap: 6 }} onClick={() => setShowPicnic(true)}>
+                Order via Picnic
+                {picnicQuestions > 0 && (
+                  <span
+                    title="Questions waiting"
+                    style={{
+                      background: 'var(--accent-orange)', color: '#fff', borderRadius: 8,
+                      fontSize: 10, padding: '1px 6px', fontWeight: 500,
+                    }}
+                  >
+                    {picnicQuestions}
+                  </span>
+                )}
+              </button>
+            )}
+            <button className="add-btn" title="Add item" onClick={() => setShowAddModal(true)}>
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                <path d="M9 3v12M3 9h12" stroke="var(--text-on-dark)" strokeWidth="1.5" strokeLinecap="round" />
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -471,6 +493,8 @@ export default function Shopping() {
           onSaved={loadList}
         />
       )}
+
+      {showPicnic && <PicnicSheet onClose={() => { setShowPicnic(false); loadList() }} />}
 
       {toast && (
         <Toast

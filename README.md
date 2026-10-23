@@ -39,6 +39,24 @@ docker run -d \
 
 The SQLite database is persisted at `/home/pi/ourhome/data` on the host.
 
+### Picnic ordering
+
+"Order via Picnic" on the shopping list fills the Picnic cart of whoever presses it (it never checks out). OpenAI matches each item to a Picnic product once; the match is cached, and anything unclear becomes a question in the app. Put these in `backend/.env` (leave a user's Picnic lines empty if they have no account):
+
+```bash
+HT_PICNIC_USER1_EMAIL=<picnic-email>
+HT_PICNIC_USER1_PASSWORD=<picnic-password>
+HT_PICNIC_USER2_EMAIL=
+HT_PICNIC_USER2_PASSWORD=
+HT_OPENAI_API_KEY=<openai-key>
+```
+
+Then log in once per user — Picnic sends an SMS code — which saves `data/picnic_token_<user>.json`:
+
+```bash
+docker compose exec backend python picnic_setup.py <user-name>
+```
+
 ### Update to latest
 
 ```bash

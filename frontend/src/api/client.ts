@@ -176,6 +176,71 @@ export interface SensorHistory extends SensorSeries {
   openings: number[]
 }
 
+export interface PicnicProduct {
+  product_id: string
+  name: string
+  unit_quantity: string
+  price: number | null  // cents
+  image_url: string | null
+}
+
+export interface PicnicStatus {
+  // connected: this user can order into their own cart; any_connected: items can be matched.
+  connected: boolean
+  any_connected: boolean
+  llm_configured: boolean
+  running: boolean
+  total: number
+  done: number
+  error: string | null
+  open_questions: number
+  pending_items: number
+}
+
+export interface PicnicQuestion {
+  id: number
+  item_key: string
+  recipe_id: number
+  recipe_names: string
+  question: string
+  candidates: PicnicProduct[]
+}
+
+export interface PicnicAnswer {
+  product_id?: string
+  text?: string
+  skip?: boolean
+  scope?: 'global' | 'recipe'
+}
+
+export interface PicnicMapping {
+  id: number
+  item_key: string
+  recipe_id: number
+  recipe_name: string | null
+  status: 'mapped' | 'skip'
+  product: PicnicProduct | null
+  source: string
+  updated_at: string
+}
+
+export interface PicnicOrderLine extends PicnicProduct {
+  count: number
+  items: string[]
+}
+
+export interface PicnicOrderPreview {
+  lines: PicnicOrderLine[]
+  unmapped: string[]
+  skipped: string[]
+}
+
+export interface PicnicOrderResult {
+  product_id: string
+  ok: boolean
+  error: string | null
+}
+
 // --- API methods ---
 
 export const api = {
@@ -276,6 +341,34 @@ export const api = {
         method: 'PUT',
         headers: authHeaders(),
         body: JSON.stringify({ market, order }),
+      }),
+  },
+
+  picnic: {
+    status: () => request<PicnicStatus>(`${BASE}/picnic/status`, { headers: authHeaders() }),
+    resolve: () =>
+      request<PicnicStatus>(`${BASE}/picnic/resolve`, { method: 'POST', headers: authHeaders() }),
+    questions: () => request<PicnicQuestion[]>(`${BASE}/picnic/questions`),
+    answer: (id: number, data: PicnicAnswer) =>
+      request<{ result: 'mapped' | 'skipped' | 'asked' }>(`${BASE}/picnic/questions/${id}/answer`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify(data),
+      }),
+    mappings: () => request<PicnicMapping[]>(`${BASE}/picnic/mappings`),
+    reask: (id: number) =>
+      request<{ result: 'mapped' | 'skipped' | 'asked' }>(`${BASE}/picnic/mappings/${id}/reask`, {
+        method: 'POST',
+        headers: authHeaders(),
+      }),
+    forget: (id: number) =>
+      request<void>(`${BASE}/picnic/mappings/${id}`, { method: 'DELETE', headers: authHeaders() }),
+    preview: () => request<PicnicOrderPreview>(`${BASE}/picnic/order-preview`),
+    order: (lines: { product_id: string; count: number }[]) =>
+      request<PicnicOrderResult[]>(`${BASE}/picnic/order`, {
+        method: 'POST',
+        headers: authHeaders(),
+        body: JSON.stringify({ lines }),
       }),
   },
 

@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.database import init_db
 from app.core.timeseries import init_timeseries_db
-from app.routers import calendar, meals, recipes, sensors, shopping, tasks, vacuum
+from app.routers import calendar, meals, picnic, recipes, sensors, shopping, tasks, vacuum
 from app.services.ble_sensors import run_ble_sensor_loop
 from app.services.ics_sync import run_ics_sync_loop
 from app.services.sensor_history import run_sensor_sampler_loop
@@ -51,6 +51,7 @@ app.include_router(calendar.router, prefix="/api/v1")
 app.include_router(vacuum.router, prefix="/api/v1")
 app.include_router(sensors.router, prefix="/api/v1")
 app.include_router(tasks.router, prefix="/api/v1")
+app.include_router(picnic.router, prefix="/api/v1")
 
 
 @app.get("/health")
