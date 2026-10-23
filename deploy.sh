@@ -25,6 +25,11 @@ if [ "$before" != "$after" ]; then
         sudo systemctl restart bluetooth
         sleep 3
         docker compose restart backend
+
+        # nginx looks up "backend" once at startup and exits if it can't, and
+        # after the restart above the frontend was left crash-looping on that
+        # until it was recreated. Recreate it now the backend is back.
+        docker compose up -d --force-recreate --no-deps frontend
     fi
 else
     echo "$(date): Images up to date."
