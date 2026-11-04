@@ -57,6 +57,17 @@ Then log in once per user — Picnic sends an SMS code — which saves `data/pic
 docker compose exec backend python picnic_setup.py <user-name>
 ```
 
+### Heating
+
+The Home page can set the target temperature of Shelly BLU TRV radiator valves. The backend reaches them through a Shelly BLU Gateway Gen3 on the LAN (no cloud) and polls it once a minute, one call at a time, since the gateway stops answering when it gets several calls at once. Put the gateway's address and each valve's Bluetooth MAC in `backend/.env`; a room without a MAC gets no control:
+
+```bash
+HT_SHELLY_GATEWAY_HOST=<gateway-ip>
+HT_TRV_LIVING_ROOM_MAC=
+HT_TRV_BEDROOM_MAC=
+HT_TRV_KITCHEN_MAC=
+```
+
 ### Update to latest
 
 ```bash

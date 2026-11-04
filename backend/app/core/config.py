@@ -29,6 +29,13 @@ class Settings(BaseSettings):
     sensor_bedroom_mac: str = ""
     sensor_kitchen_mac: str = ""
     sensor_stale_after_minutes: int = 30
+    # Shelly BLU TRV radiator valves, reached through a Shelly BLU Gateway
+    # Gen3 on the LAN. Each valve is matched to a room by its Bluetooth MAC; a
+    # room with no MAC configured has no heating control.
+    shelly_gateway_host: str = ""
+    trv_living_room_mac: str = ""
+    trv_bedroom_mac: str = ""
+    trv_kitchen_mac: str = ""
     # Sensor history, kept in its own SQLite file.
     timeseries_path: str = "data/sensors.db"
     # A window opening reads as a break in the slope: the fall over the last

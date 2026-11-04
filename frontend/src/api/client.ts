@@ -155,6 +155,20 @@ export interface SensorReading {
   stale: boolean
 }
 
+export interface ThermostatState {
+  room: string
+  mac: string
+  // The valve's own reading, at the radiator — warmer than the room sensor.
+  current_temperature: number | null
+  target_temperature: number | null
+  valve_position: number | null
+  battery: number | null
+  last_seen: string | null
+  stale: boolean
+  // False while the gateway cannot connect to the valve to change it.
+  reachable: boolean
+}
+
 export interface SensorSeries {
   room: string
   metric: string
@@ -259,6 +273,16 @@ export const api = {
       series.forEach(s => params.append('series', s))
       return request<SensorHistory[]>(`${BASE}/sensors/history?${params}`)
     },
+  },
+
+  thermostats: {
+    list: () => request<ThermostatState[]>(`${BASE}/thermostats`),
+    setTarget: (room: string, targetC: number) =>
+      request<void>(`${BASE}/thermostats/${encodeURIComponent(room)}/target`, {
+        method: 'PUT',
+        headers: authHeaders(),
+        body: JSON.stringify({ target_c: targetC }),
+      }),
   },
 
   recipes: {
