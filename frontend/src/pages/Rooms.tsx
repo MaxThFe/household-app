@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api, SensorHistory, SensorSeriesInfo } from '../api/client'
 import LineChart, { ChartSeries } from '../components/LineChart'
+import { Thermostats } from '../components/Thermostats'
 
 // Colour identifies the room; the two metrics live in separate charts, so a
 // single fixed order is all that is needed. Darker than the app's accents so
@@ -122,6 +123,8 @@ export default function Rooms() {
       </div>
 
       <div style={{ padding: '16px 20px' }}>
+        <Thermostats />
+
         {/* Full width rather than side by side: two datetime-locals in a 480px
             column are too narrow to show the date and the clock together. */}
         <div style={{ marginBottom: 16 }}>

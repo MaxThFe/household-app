@@ -59,7 +59,7 @@ docker compose exec backend python picnic_setup.py <user-name>
 
 ### Heating
 
-The Home page can set the target temperature of Shelly BLU TRV radiator valves. The backend reaches them through a Shelly BLU Gateway Gen3 on the LAN (no cloud) and polls it once a minute, one call at a time, since the gateway stops answering when it gets several calls at once. Put the gateway's address and each valve's Bluetooth MAC in `backend/.env`; a room without a MAC gets no control:
+The Rooms page can set the target temperature of Shelly BLU TRV radiator valves. The backend reaches them through a Shelly BLU Gateway Gen3 on the LAN (no cloud) and polls it once a minute, one call at a time, since the gateway stops answering when it gets several calls at once. Put the gateway's address and each valve's Bluetooth MAC in `backend/.env`; a room without a MAC gets no control:
 
 ```bash
 HT_SHELLY_GATEWAY_HOST=<gateway-ip>

@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, CalendarEvent, Meal, SensorReading, ShoppingItem, Task, isTaskDue, toISOWeek, todayISO, dateISO, greeting } from '../api/client'
 import { SettingsSidebar } from '../components/SettingsSidebar'
-import { Thermostats } from '../components/Thermostats'
 import { TaskRow, useTaskCompletion } from '../components/TaskRow'
 
 // Enough of the board to act on at a glance; the rest is one tap away.
@@ -217,8 +216,6 @@ export default function Home() {
             </div>
           </div>
         )}
-
-        <Thermostats />
 
         {/* Task board */}
         <div>
