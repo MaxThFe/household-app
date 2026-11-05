@@ -161,6 +161,9 @@ export interface ThermostatState {
   // The valve's own reading, at the radiator — warmer than the room sensor.
   current_temperature: number | null
   target_temperature: number | null
+  // The room sensor's reading the valve regulates on, when it is fed one.
+  room_temperature: number | null
+  regulated_by: 'room_sensor' | 'valve'
   valve_position: number | null
   battery: number | null
   last_seen: string | null

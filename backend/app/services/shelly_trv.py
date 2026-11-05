@@ -10,6 +10,12 @@ The gateway is easily overwhelmed — a handful of calls in flight and it stops
 answering or restarts — so it is only ever asked one thing at a time: a slow
 poll keeps the valve status in memory for the app to read, and setpoint changes
 queue behind it.
+
+The valve's own sensor sits against the radiator and reads warm, so each valve
+is fed the temperature from the room's Xiaomi sensor (TRV.SetExternalTemperature)
+and regulates on that. Every push is a Bluetooth connection to the valve, which
+costs battery, so it only goes out when the reading has moved or gone a while
+without a refresh. With no fresh room reading the valve is left to its own.
 """
 
 import asyncio
@@ -20,6 +26,7 @@ from datetime import datetime, timezone
 import httpx
 
 from app.core.config import settings
+from app.services.ble_sensors import get_readings
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +40,10 @@ _TIMEOUT = 10.0
 POLL_INTERVAL_SECONDS = 60
 # Breathing room between consecutive calls within one poll.
 _CALL_GAP_SECONDS = 1.0
+# Push the room temperature when it has moved this much since the last push,
+# and at least this often regardless, so the valve never runs on an old one.
+EXTERNAL_MIN_CHANGE_C = 0.1
+EXTERNAL_REFRESH_SECONDS = 600
 
 # Every call to the gateway holds this, so there is never more than one.
 _gateway_lock = asyncio.Lock()
@@ -63,6 +74,11 @@ _states: dict[str, dict] = {}
 # The gateway's cached status lags a write until the valve next reports, so a
 # target set from here wins over any status older than it: room -> (target, ts).
 _written: dict[str, tuple[float, float]] = {}
+# Room -> (room temperature last pushed to the valve, time.time() of the push).
+_pushed: dict[str, tuple[float, float]] = {}
+# Room -> time.time() of the last failed push, to back off instead of retrying
+# a valve that cannot be reached every poll.
+_push_failed: dict[str, float] = {}
 
 
 async def _rpc(client: httpx.AsyncClient, method: str, params: dict) -> dict:
@@ -109,11 +125,16 @@ def _state(room: str, mac: str, link: dict, remote: dict) -> dict:
     if written and written[1] > remote.get("ts", 0):
         target = written[0]
     last_seen = link.get("last_updated_ts")
+    pushed = _pushed.get(room)
+    # A push older than two refreshes means the feed has stopped.
+    on_room_sensor = pushed is not None and time.time() - pushed[1] < 2 * EXTERNAL_REFRESH_SECONDS
     return {
         "room": room,
         "mac": mac,
         "current_temperature": trv.get("current_C"),
         "target_temperature": target,
+        "room_temperature": pushed[0] if on_room_sensor else None,
+        "regulated_by": "room_sensor" if on_room_sensor else "valve",
         "valve_position": trv.get("pos"),
         "battery": link.get("battery"),
         "last_seen": _iso(last_seen),
@@ -129,6 +150,66 @@ def get_thermostats() -> list[dict]:
     return [_states[room] for room in trv_rooms().values() if room in _states]
 
 
+def _room_temperature(room: str) -> float | None:
+    """The room sensor's temperature, if it has reported recently."""
+    for reading in get_readings():
+        if reading["room"] == room and not reading["stale"]:
+            return reading["temperature"]
+    return None
+
+
+def _push_due(room: str, temperature: float, now: float) -> bool:
+    failed = _push_failed.get(room)
+    if failed is not None and now - failed < EXTERNAL_REFRESH_SECONDS:
+        return False
+    pushed = _pushed.get(room)
+    return (
+        pushed is None
+        or abs(temperature - pushed[0]) >= EXTERNAL_MIN_CHANGE_C
+        or now - pushed[1] >= EXTERNAL_REFRESH_SECONDS
+    )
+
+
+async def _push_room_temperature(client: httpx.AsyncClient, room: str, valve_id: int) -> None:
+    temperature = _room_temperature(room)
+    now = time.time()
+    if temperature is None:
+        # The valve holds on to the last external reading rather than letting
+        # it lapse, so hand it back its own sensor explicitly: the call without
+        # t_C does that.
+        if room in _pushed:
+            await _set_external(client, room, valve_id, None, now)
+        return
+    if _push_due(room, temperature, now):
+        await _set_external(client, room, valve_id, temperature, now)
+
+
+async def _set_external(
+    client: httpx.AsyncClient, room: str, valve_id: int, temperature: float | None, now: float
+) -> None:
+    params: dict = {"id": 0}
+    if temperature is not None:
+        params["t_C"] = temperature
+    await asyncio.sleep(_CALL_GAP_SECONDS)
+    try:
+        await _rpc(client, "BluTrv.Call", {
+            "id": valve_id,
+            "method": "TRV.SetExternalTemperature",
+            "params": params,
+        })
+    except TrvError as e:
+        _push_failed[room] = now
+        logger.warning("Could not set the %s TRV's external temperature: %s", room, e)
+        return
+    _push_failed.pop(room, None)
+    if temperature is None:
+        _pushed.pop(room, None)
+        logger.info("TRV %s back on its own sensor: no fresh room reading", room)
+    else:
+        _pushed[room] = (temperature, now)
+        logger.debug("TRV %s regulating on room temperature %.2f °C", room, temperature)
+
+
 async def _poll(client: httpx.AsyncClient) -> None:
     rooms = trv_rooms()
     if not _valve_ids or any(mac not in _valve_ids for mac in rooms):
@@ -142,6 +223,8 @@ async def _poll(client: httpx.AsyncClient) -> None:
         link = await _rpc(client, "BluTrv.GetStatus", {"id": valve_id})
         await asyncio.sleep(_CALL_GAP_SECONDS)
         remote = await _rpc(client, "BluTrv.GetRemoteStatus", {"id": valve_id})
+        if "connect_failed" not in link.get("errors", []):
+            await _push_room_temperature(client, room, valve_id)
         _states[room] = _state(room, mac, link, remote)
 
 

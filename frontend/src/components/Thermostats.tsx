@@ -82,6 +82,7 @@ function ThermostatRow({ thermostat: t, onSent }: { thermostat: ThermostatState;
           {error
             ?? (sending ? 'Setting…'
               : !t.reachable ? 'Valve out of reach'
+              : t.room_temperature !== null ? `${t.room_temperature.toFixed(1)}° in the room`
               : t.current_temperature !== null ? `${t.current_temperature.toFixed(1)}° at the radiator`
               : '–')}
           {t.battery != null && t.battery < 10 && ` · battery ${t.battery}%`}
