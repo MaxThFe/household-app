@@ -142,6 +142,9 @@ def _state(room: str, mac: str, link: dict, remote: dict) -> dict:
         or time.time() - last_seen > settings.sensor_stale_after_minutes * 60,
         # Advertisements still arrive, but writes cannot get through.
         "reachable": "connect_failed" not in link.get("errors", []),
+        # When the valve last reported this status, for the history store; not
+        # served to the app.
+        "status_ts": int(remote["ts"]) if remote.get("ts") else None,
     }
 
 

@@ -167,3 +167,69 @@ async def test_unknown_series_returns_empty(db_path):
         assert result["points"] == []
     finally:
         await db.close()
+
+
+@pytest.fixture
+def valves(monkeypatch):
+    """Swap the live thermostat states for a list the test controls."""
+    box: list[dict] = []
+    monkeypatch.setattr(sensor_history, "get_thermostats", lambda: box)
+    return box
+
+
+def valve(room="Kitchen", *, pos=40, current=24.5, target=20.0, status_ts=None):
+    return {
+        "room": room,
+        "valve_position": pos,
+        "current_temperature": current,
+        "target_temperature": target,
+        "status_ts": int(T0.timestamp()) if status_ts is None else status_ts,
+    }
+
+
+@pytest.mark.asyncio
+async def test_sample_logs_valve_status(db_path, readings, valves):
+    valves.append(valve())
+    await timeseries.init_timeseries_db()
+    db = await timeseries.connect()
+    try:
+        assert await sample_once(db) == 3  # position + valve temperature + target
+        async with db.execute(
+            "SELECT s.metric, s.unit, r.value FROM readings r "
+            "JOIN series s ON s.id = r.series_id ORDER BY s.metric"
+        ) as cur:
+            rows = [tuple(r) for r in await cur.fetchall()]
+        assert rows == [
+            ("valve_position", "%", 40.0),
+            ("valve_target", "°C", 20.0),
+            ("valve_temperature", "°C", 24.5),
+        ]
+    finally:
+        await db.close()
+
+
+@pytest.mark.asyncio
+async def test_unchanged_valve_status_is_not_written_twice(db_path, readings, valves):
+    valves.append(valve())
+    await timeseries.init_timeseries_db()
+    db = await timeseries.connect()
+    try:
+        await sample_once(db)
+        assert await sample_once(db) == 0
+    finally:
+        await db.close()
+
+
+@pytest.mark.asyncio
+async def test_valve_series_are_not_listed_for_the_app(db_path, readings, valves, monkeypatch):
+    monkeypatch.setattr(sensor_history, "sensor_rooms", lambda: {"AA": "Kitchen"})
+    readings.append(reading())
+    valves.append(valve())
+    await timeseries.init_timeseries_db()
+    db = await timeseries.connect()
+    try:
+        await sample_once(db)
+        metrics = {s["metric"] for s in await sensor_history.list_series(db)}
+        assert metrics == {"temperature", "humidity"}
+    finally:
+        await db.close()

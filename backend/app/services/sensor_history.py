@@ -2,7 +2,9 @@
 
 The sensors advertise every few seconds; we poll the live readings once a minute
 instead, so the SD card sees one commit per tick rather than one per
-advertisement.
+advertisement. The radiator valves' status rides along in the same tick and
+the same tables, under their own metric names; it is kept for analysis only
+and not offered to the app.
 """
 
 import asyncio
@@ -14,12 +16,21 @@ import aiosqlite
 from app.core import timeseries
 from app.core.config import settings
 from app.services.ble_sensors import get_readings, sensor_rooms
+from app.services.shelly_trv import get_thermostats, trv_rooms
 from app.services.window_openings import WINDOW_SECONDS, detect_window_openings
 
 logger = logging.getLogger(__name__)
 
 # Metrics we keep history for, and the unit each is reported in.
 METRICS: dict[str, str] = {"temperature": "°C", "humidity": "%"}
+# The valves' status: series metric -> (unit, thermostat state field). The
+# temperature is the valve's own, at the radiator.
+VALVE_METRICS: dict[str, tuple[str, str]] = {
+    "valve_position": ("%", "valve_position"),
+    "valve_temperature": ("°C", "current_temperature"),
+    "valve_target": ("°C", "target_temperature"),
+}
+UNITS: dict[str, str] = {**METRICS, **{m: unit for m, (unit, _) in VALVE_METRICS.items()}}
 
 # One sample per minute. The chart resolution and the ~60 MB/year on disk are
 # both sized around this, so it is a constant rather than a knob.
@@ -33,7 +44,7 @@ async def series_id(db: aiosqlite.Connection, room: str, metric: str) -> int:
     """Row id for a (room, metric) pair, inserting it the first time."""
     await db.execute(
         "INSERT OR IGNORE INTO series (room, metric, unit) VALUES (?, ?, ?)",
-        (room, metric, METRICS.get(metric, "")),
+        (room, metric, UNITS.get(metric, "")),
     )
     async with db.execute(
         "SELECT id FROM series WHERE room = ? AND metric = ?", (room, metric)
@@ -58,7 +69,7 @@ async def list_series(db: aiosqlite.Connection) -> list[dict]:
     ) as cur:
         found = [dict(row) for row in await cur.fetchall()]
     return sorted(
-        (s for s in found if s["room"] in rooms),
+        (s for s in found if s["room"] in rooms and s["metric"] in METRICS),
         key=lambda s: rooms.index(s["room"]),
     )
 
@@ -82,6 +93,18 @@ async def sample_once(db: aiosqlite.Connection) -> int:
             if value is None:
                 continue
             rows.append((await series_id(db, reading["room"], metric), ts, value))
+
+    # Same dedupe for the valves: stamped with when the valve reported, so the
+    # gateway's unchanged cache is not written again every minute.
+    for state in get_thermostats():
+        ts = state.get("status_ts")
+        if ts is None:
+            continue
+        for metric, (_, field) in VALVE_METRICS.items():
+            value = state.get(field)
+            if value is None:
+                continue
+            rows.append((await series_id(db, state["room"], metric), ts, value))
 
     written = 0
     if rows:
@@ -174,8 +197,8 @@ async def fetch_openings(
 
 
 async def run_sensor_sampler_loop() -> None:
-    if not sensor_rooms():
-        logger.info("No BLE sensors configured, history sampler disabled")
+    if not sensor_rooms() and not trv_rooms():
+        logger.info("No BLE sensors or TRVs configured, history sampler disabled")
         return
 
     while True:
