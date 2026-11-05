@@ -226,8 +226,11 @@ async def _poll(client: httpx.AsyncClient) -> None:
         link = await _rpc(client, "BluTrv.GetStatus", {"id": valve_id})
         await asyncio.sleep(_CALL_GAP_SECONDS)
         remote = await _rpc(client, "BluTrv.GetRemoteStatus", {"id": valve_id})
-        if "connect_failed" not in link.get("errors", []):
-            await _push_room_temperature(client, room, valve_id)
+        # Tried even while the gateway flags connect_failed: the flag can
+        # outlive a shaky link, and only a connection that gets through clears
+        # it. A failed push backs off for EXTERNAL_REFRESH_SECONDS, so a valve
+        # out of reach costs one attempt per ten minutes.
+        await _push_room_temperature(client, room, valve_id)
         _states[room] = _state(room, mac, link, remote)
 
 

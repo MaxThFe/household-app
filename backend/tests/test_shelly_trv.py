@@ -151,3 +151,45 @@ def test_quiet_sensor_hands_the_valve_back_its_own(monkeypatch, no_pushes):
 
 def test_quiet_sensor_never_fed_sends_nothing(monkeypatch, no_pushes):
     assert _run_push(monkeypatch, None) == []
+
+
+class FlakyGateway:
+    """Answers polls from canned payloads; every TRV write times out."""
+
+    def __init__(self, link):
+        self.link = link
+        self.writes = 0
+
+    async def post(self, url, json):
+        method, params = json["method"], json["params"]
+        if method == "BluTrv.Call":
+            self.writes += 1
+            result = {"error": {"code": 504, "message": "Deadline exceeded"}}
+        elif method == "BluTrv.GetStatus":
+            result = {"result": self.link}
+        elif method == "BluTrv.GetRemoteStatus":
+            result = {"result": REMOTE}
+        else:
+            raise AssertionError(method)
+
+        class Res:
+            def json(self):
+                return {"id": 1, **result}
+
+        return Res()
+
+
+def test_unreachable_valve_is_still_tried_then_backs_off(monkeypatch, no_pushes):
+    import asyncio
+    monkeypatch.setattr(shelly_trv, "_CALL_GAP_SECONDS", 0)
+    monkeypatch.setattr(shelly_trv, "trv_rooms", lambda: {MAC: "Bedroom"})
+    monkeypatch.setattr(shelly_trv, "_room_temperature", lambda room: 18.6)
+    monkeypatch.setitem(shelly_trv._valve_ids, MAC, 200)
+    gateway = FlakyGateway({**LINK, "errors": ["connect_failed"]})
+
+    asyncio.run(shelly_trv._poll(gateway))
+    assert gateway.writes == 1
+    assert "Bedroom" in shelly_trv._push_failed
+
+    asyncio.run(shelly_trv._poll(gateway))
+    assert gateway.writes == 1  # backing off, no second attempt yet
