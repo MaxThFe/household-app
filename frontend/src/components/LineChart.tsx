@@ -5,8 +5,6 @@ export interface ChartSeries {
   label: string
   color: string
   points: [number, number][]  // [unix seconds, value]
-  /** Moments to mark with a window glyph, in unix seconds. */
-  openings?: number[]
 }
 
 interface Props {
@@ -29,9 +27,6 @@ const TICK_SIZE = 13
 const LABEL_SIZE = 13
 // Minimum vertical spacing between two direct labels before they get nudged.
 const LABEL_GAP = 14
-// Side of the window glyph. Small enough that two of them on the same line stay
-// apart, large enough that the mullion still reads on a phone.
-const GLYPH = 11
 const PLOT_W = W - PAD.left - PAD.right
 const PLOT_H = H - PAD.top - PAD.bottom
 
@@ -191,30 +186,6 @@ export default function LineChart({ series, unit, start, end, gapSeconds, decima
             />
           )
         })}
-
-        {/* A window opening sits on its own line, at the corner where the
-            temperature turns. The glyph is filled with the card colour so the
-            line runs behind it rather than through it. */}
-        {active.flatMap(s => (s.openings ?? []).map(ts => {
-          const x = scale.x(ts)
-          const near = nearestPoint(s.points, ts)
-          if (x < PAD.left || x > W - PAD.right) return null
-          if (Math.abs(near[0] - ts) > gapSeconds) return null
-          const y = scale.y(near[1])
-          return (
-            <g key={`${s.key}-${ts}`} transform={`translate(${x.toFixed(1)} ${y.toFixed(1)})`}>
-              <title>{`Window opened · ${s.label} · ${formatStamp(ts)}`}</title>
-              <rect
-                x={-GLYPH / 2} y={-GLYPH / 2} width={GLYPH} height={GLYPH} rx={1.5}
-                fill="var(--bg-card)" stroke={s.color} strokeWidth={1.5}
-              />
-              <path
-                d={`M0 ${-GLYPH / 2}V${GLYPH / 2}M${-GLYPH / 2} 0H${GLYPH / 2}`}
-                fill="none" stroke={s.color} strokeWidth={1}
-              />
-            </g>
-          )
-        }))}
 
         {cursor !== null && (
           <g>

@@ -149,8 +149,6 @@ export default function Rooms() {
                 label: room,
                 color: ROOM_COLORS[rooms.indexOf(room) % ROOM_COLORS.length],
                 points: entry?.points ?? [],
-                // Only temperature comes back with any, so nothing is gated here.
-                openings: entry?.openings ?? [],
               }
             })
 
