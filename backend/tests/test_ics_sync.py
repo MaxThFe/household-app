@@ -5,6 +5,7 @@ from datetime import date
 
 from icalendar import Calendar
 
+from app.core.config import settings
 from app.services.ics_sync import _general_rows, _work_rows
 
 FEED = """BEGIN:VCALENDAR\r
@@ -89,4 +90,63 @@ def test_work_feed_keeps_evenings_and_whole_days_but_not_deadlines(monkeypatch):
         ("2026-09-22", "Colloquium"),
         ("2026-09-23", "Conference Utrecht"),
         ("2026-09-24", "Conference Utrecht"),
+    ]
+
+
+
+WANTED_FEED = """BEGIN:VCALENDAR\r
+VERSION:2.0\r
+BEGIN:VEVENT\r
+UID:dinner\r
+SUMMARY:Group dinner\r
+DTSTART:20260922T170000Z\r
+DTEND:20260922T190000Z\r
+X-MICROSOFT-CDO-BUSYSTATUS:BUSY\r
+END:VEVENT\r
+BEGIN:VEVENT\r
+UID:drinks\r
+SUMMARY:Biweekly employee drinks\r
+DTSTART:20260923T150000Z\r
+DTEND:20260923T180000Z\r
+X-MICROSOFT-CDO-BUSYSTATUS:TENTATIVE\r
+END:VEVENT\r
+BEGIN:VEVENT\r
+UID:followed\r
+SUMMARY:Following: Faculty colloquium\r
+DTSTART:20260923T160000Z\r
+DTEND:20260923T180000Z\r
+X-MICROSOFT-CDO-BUSYSTATUS:FREE\r
+END:VEVENT\r
+BEGIN:VEVENT\r
+UID:patch\r
+SUMMARY:Patch-Thursday SRV507\r
+DTSTART;VALUE=DATE:20260924\r
+DTEND;VALUE=DATE:20260925\r
+X-MICROSOFT-CDO-BUSYSTATUS:FREE\r
+END:VEVENT\r
+BEGIN:VEVENT\r
+UID:christmas\r
+SUMMARY:Christmas Day\r
+DTSTART;VALUE=DATE:20260925\r
+DTEND;VALUE=DATE:20260926\r
+X-MICROSOFT-CDO-BUSYSTATUS:FREE\r
+END:VEVENT\r
+END:VCALENDAR\r
+"""
+
+
+def test_work_feed_drops_unanswered_followed_and_ignored_events(monkeypatch):
+    monkeypatch.setenv("TZ", "Europe/Berlin")
+    monkeypatch.setattr(settings, "ics_work_ignore", "patch-thursday, ")
+    time.tzset()
+    try:
+        rows = list(_work_rows(Calendar.from_ical(WANTED_FEED), today=date(2026, 9, 21)))
+    finally:
+        monkeypatch.undo()
+        time.tzset()
+
+    # Whole days show as free by default, so Christmas stays.
+    assert [(r.date, r.title) for r in rows] == [
+        ("2026-09-22", "Group dinner"),
+        ("2026-09-25", "Christmas Day"),
     ]

@@ -9,7 +9,7 @@ from difflib import SequenceMatcher
 import aiosqlite
 import httpx
 import recurring_ical_events
-from icalendar import Calendar
+from icalendar import Calendar, Event
 
 from app.core.config import settings
 
@@ -107,7 +107,12 @@ def _local(value: datetime) -> datetime:
     return value.astimezone().replace(tzinfo=None)
 
 
-def _general_rows(cal: Calendar, today: date | None = None, prefix: str = "general") -> Iterator[Row]:
+def _general_rows(
+    cal: Calendar,
+    today: date | None = None,
+    prefix: str = "general",
+    keep: Callable[[Event], bool] = lambda _: True,
+) -> Iterator[Row]:
     today = today or date.today()
     # Yearly series are birthday and anniversary reminders, not plans. Their
     # one-off changes share the series UID, so drop by UID, not by component.
@@ -122,6 +127,8 @@ def _general_rows(cal: Calendar, today: date | None = None, prefix: str = "gener
         if not uid or uid in yearly:
             continue
         if str(occurrence.get("STATUS", "")) == "CANCELLED":
+            continue
+        if not keep(occurrence):
             continue
         summary = str(occurrence.get("SUMMARY", "")).strip()
 
@@ -178,9 +185,21 @@ def _runs_into_the_evening(row: Row) -> bool:
     return row.end_time > WORK_EVENING_FROM or row.end_time < row.start_time
 
 
+def _wanted_at_work(event: Event) -> bool:
+    # Outlook publishes no RSVP, but unanswered or maybe invites show as
+    # tentative. "Free" can't stand in for declined: whole days default to it.
+    if str(event.get("X-MICROSOFT-CDO-BUSYSTATUS", "")).upper() == "TENTATIVE":
+        return False
+    title = str(event.get("SUMMARY", "")).strip().lower()
+    if title.startswith("following:"):
+        return False
+    ignored = (f.strip().lower() for f in settings.ics_work_ignore.split(","))
+    return not any(f and f in title for f in ignored)
+
+
 def _work_rows(cal: Calendar, today: date | None = None) -> Iterator[Row]:
     """The work calendar, minus the events the household is unaffected by."""
-    for row in _general_rows(cal, today, prefix="work"):
+    for row in _general_rows(cal, today, prefix="work", keep=_wanted_at_work):
         if row.all_day:
             if not _reads_as_deadline(row.title):
                 yield row
