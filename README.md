@@ -1,6 +1,14 @@
 # OurHome
 
-A household management PWA built for two people. It covers meal planning with a shared recipe book, a collaborative shopping list, a calendar that syncs work shifts and general appointments from ICS feeds, and live room temperature and humidity.
+A household PWA for two people:
+
+- **Meals and recipes**: a weekly meal plan drawing on a shared recipe book
+- **Shopping**: a shared list, sorted by store section, that can fill a Picnic cart
+- **Calendar**: shifts, appointments and work events synced from ICS feeds
+- **Tasks**: a board that shows only what needs doing
+- **Rooms**: temperature and humidity from Bluetooth sensors, with history
+- **Heating**: radiator valve targets through a Shelly BLU gateway
+- **Vacuum**: a weekly Roborock cleaning schedule
 
 <p align="center">
   <img src="docs/screenshots/dash-board.JPEG" width="32%">
@@ -9,102 +17,34 @@ A household management PWA built for two people. It covers meal planning with a 
 
 ## Stack
 
-- **Backend** — FastAPI + SQLite (aiosqlite), runs on a Raspberry Pi
-- **Frontend** — React + Vite + TypeScript PWA
+- **Backend**: FastAPI and SQLite
+- **Frontend**: React, Vite and TypeScript
 
----
+## Deployment
 
-## Raspberry Pi deployment
-
-The backend is published as a Docker image (ARM64) via GitHub Actions on every push to `main`.
-
-### Pull and run
+Every push to `main` builds backend and frontend images for `linux/amd64` and `linux/arm64` and pushes them to `ghcr.io/maxthfe/household-app`. On the server:
 
 ```bash
-docker pull ghcr.io/maxthfe/household-app/backend:latest
-
-docker run -d \
-  --name ourhome \
-  --restart unless-stopped \
-  -p 8000:8000 \
-  -v /home/pi/ourhome/data:/app/data \
-  -e HT_USER1_NAME=UserName1 \
-  -e HT_USER2_NAME=UserName2 \
-  -e HT_ICS_URL=<your-shift-ics-url> \
-  -e HT_ICS_GENERAL_URL=<your-general-ics-url> \
-  -e HT_ICS_WORK_URL=<your-work-ics-url> \
-  -e HT_ICS_SYNC_INTERVAL_MINUTES=30 \
-  ghcr.io/maxthfe/household-app/backend:latest
+cp backend/.env.example backend/.env   # fill in what you use; every integration is optional
+docker compose pull
+docker compose up -d
 ```
 
-The SQLite database is persisted at `/home/pi/ourhome/data` on the host.
+The frontend listens on port 8080 (set `FRONTEND_PORT` in a `.env` next to `docker-compose.yml` to change it). Data lives in `backend/data`. `deploy.sh` pulls new images and restarts only when they changed, so it can run from cron.
 
-### Picnic ordering
-
-"Order via Picnic" on the shopping list fills the Picnic cart of whoever presses it (it never checks out). OpenAI matches each item to a Picnic product once; the match is cached, and anything unclear becomes a question in the app. Put these in `backend/.env` (leave a user's Picnic lines empty if they have no account):
-
-```bash
-HT_PICNIC_USER1_EMAIL=<picnic-email>
-HT_PICNIC_USER1_PASSWORD=<picnic-password>
-HT_PICNIC_USER2_EMAIL=
-HT_PICNIC_USER2_PASSWORD=
-HT_OPENAI_API_KEY=<openai-key>
-```
-
-Then log in once per user — Picnic sends an SMS code — which saves `data/picnic_token_<user>.json`:
+Picnic and Roborock need a one-time login per account, which saves a token in `backend/data`:
 
 ```bash
 docker compose exec backend python picnic_setup.py <user-name>
+docker compose exec backend python roborock_setup.py
 ```
-
-### Heating
-
-The Rooms page can set the target temperature of Shelly BLU TRV radiator valves. The backend reaches them through a Shelly BLU Gateway Gen3 on the LAN (no cloud) and polls it once a minute, one call at a time, since the gateway stops answering when it gets several calls at once. Put the gateway's address and each valve's Bluetooth MAC in `backend/.env`; a room without a MAC gets no control:
-
-```bash
-HT_SHELLY_GATEWAY_HOST=<gateway-ip>
-HT_TRV_LIVING_ROOM_MAC=
-HT_TRV_BEDROOM_MAC=
-HT_TRV_KITCHEN_MAC=
-```
-
-### Update to latest
-
-```bash
-docker pull ghcr.io/maxthfe/household-app/backend:latest
-docker restart ourhome
-```
----
 
 ## Local development
 
-### Backend
-
 ```bash
-cd backend
-uv sync
-uv run uvicorn app.main:app --reload
+cd backend && uv sync && uv run uvicorn app.main:app --reload   # http://localhost:8000
+cd frontend && npm install && npm run dev                       # http://localhost:5173
 ```
-
-Runs at `http://localhost:8000`. Copy `.env.example` to `.env` and fill in your values.
-
-### Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-Runs at `http://localhost:5173`.
-
----
-
-## GitHub Actions
-
-On push to `main` (backend files only), a Docker image is built for `linux/arm64` and pushed to the GitHub Container Registry (`ghcr.io`).
-
----
 
 ## License
 
