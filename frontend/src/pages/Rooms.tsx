@@ -113,6 +113,9 @@ export default function Rooms() {
   const to = new Date(end).getTime() / 1000
   // Break lines across gaps a few samples wide, so sensor silence stays visible.
   const gapSeconds = Math.max(180, ((to - from) / 500) * 3)
+  // The valves report on change and only now and then otherwise, and hold
+  // their position in between, so only a long silence is worth a break.
+  const VALVE_GAP_SECONDS = 3600
 
   return (
     <div>
@@ -198,7 +201,7 @@ export default function Rooms() {
                     unit={metric.unit}
                     start={from}
                     end={to}
-                    gapSeconds={gapSeconds}
+                    gapSeconds={metric.key === 'valve_position' ? Math.max(gapSeconds, VALVE_GAP_SECONDS) : gapSeconds}
                     // Half a degree matters; half a percent of humidity does not.
                     decimals={metric.key === 'temperature' ? 1 : 0}
                   />
