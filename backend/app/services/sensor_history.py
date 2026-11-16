@@ -3,8 +3,8 @@
 The sensors advertise every few seconds; we poll the live readings once a minute
 instead, so the SD card sees one commit per tick rather than one per
 advertisement. The radiator valves' status rides along in the same tick and
-the same tables, under their own metric names; it is kept for analysis only
-and not offered to the app.
+the same tables, under their own metric names. Only the valve position is
+offered to the app; the rest is kept for analysis.
 """
 
 import asyncio
@@ -29,6 +29,9 @@ VALVE_METRICS: dict[str, tuple[str, str]] = {
     "valve_target": ("°C", "target_temperature"),
 }
 UNITS: dict[str, str] = {**METRICS, **{m: unit for m, (unit, _) in VALVE_METRICS.items()}}
+# Series the app charts, in display order: room metrics for sensor rooms, the
+# valve position for rooms with a valve.
+LISTED_METRICS: list[str] = [*METRICS, "valve_position"]
 
 # One sample per minute. The chart resolution and the ~60 MB/year on disk are
 # both sized around this, so it is a constant rather than a knob.
@@ -58,7 +61,15 @@ async def list_series(db: aiosqlite.Connection) -> list[dict]:
     just accumulates their history. A room dropped or renamed in .env therefore
     disappears from the app while its old rows stay on disk.
     """
-    rooms = list(sensor_rooms().values())
+    sensor_names = list(sensor_rooms().values())
+    valve_names = list(trv_rooms().values())
+    rooms = sensor_names + [r for r in valve_names if r not in sensor_names]
+
+    def configured(s: dict) -> bool:
+        if s["metric"] in METRICS:
+            return s["room"] in sensor_names
+        return s["metric"] in LISTED_METRICS and s["room"] in valve_names
+
     async with db.execute(
         "SELECT s.room, s.metric, s.unit, "
         "       MIN(r.ts) AS first_ts, MAX(r.ts) AS last_ts "
@@ -67,8 +78,8 @@ async def list_series(db: aiosqlite.Connection) -> list[dict]:
     ) as cur:
         found = [dict(row) for row in await cur.fetchall()]
     return sorted(
-        (s for s in found if s["room"] in rooms and s["metric"] in METRICS),
-        key=lambda s: rooms.index(s["room"]),
+        filter(configured, found),
+        key=lambda s: (rooms.index(s["room"]), LISTED_METRICS.index(s["metric"])),
     )
 
 

@@ -4,7 +4,7 @@ import { api, SensorHistory, SensorSeriesInfo } from '../api/client'
 import LineChart, { ChartSeries } from '../components/LineChart'
 import { Thermostats } from '../components/Thermostats'
 
-// Colour identifies the room; the two metrics live in separate charts, so a
+// Colour identifies the room; the metrics live in separate charts, so a
 // single fixed order is all that is needed. Darker than the app's accents so
 // white pill text clears 4.5:1 (5.4 / 6.9 / 5.3); still passes the CVD,
 // chroma and lightness-band checks.
@@ -70,14 +70,19 @@ export default function Rooms() {
     [available],
   )
 
+  // Each metric charts only the rooms that report it: every sensor room has
+  // temperature and humidity, but only rooms with a valve have a position.
   const metrics = useMemo(() => {
-    const units = new Map<string, string>()
-    available.forEach(s => { if (!units.has(s.metric)) units.set(s.metric, s.unit) })
-    return [...units].map(([key, unit]) => ({
-      key,
-      unit,
-      label: key.charAt(0).toUpperCase() + key.slice(1),
-    }))
+    const byMetric = new Map<string, { unit: string, rooms: string[] }>()
+    available.forEach(s => {
+      const m = byMetric.get(s.metric) ?? { unit: s.unit, rooms: [] }
+      m.rooms.push(s.room)
+      byMetric.set(s.metric, m)
+    })
+    return [...byMetric].map(([key, { unit, rooms }]) => {
+      const words = key.replace(/_/g, ' ')
+      return { key, unit, rooms, label: words.charAt(0).toUpperCase() + words.slice(1) }
+    })
   }, [available])
 
   useEffect(() => {
@@ -140,7 +145,7 @@ export default function Rooms() {
         </div>
 
         {metrics.map(metric => {
-          const series: ChartSeries[] = rooms
+          const series: ChartSeries[] = metric.rooms
             .filter(room => !off.has(`${room}:${metric.key}`))
             .map(room => {
               const entry = history.find(h => h.room === room && h.metric === metric.key)
@@ -159,8 +164,9 @@ export default function Rooms() {
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', margin: '6px 0 10px' }}>
                 {/* The pills are the legend: an active one is filled with the
                     line's colour, so the chart needs no separate key. */}
-                {rooms.map((room, i) => {
+                {metric.rooms.map(room => {
                   const key = `${room}:${metric.key}`
+                  const i = rooms.indexOf(room)
                   const hidden = off.has(key)
                   return (
                     <button

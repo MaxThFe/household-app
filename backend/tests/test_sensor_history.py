@@ -221,15 +221,16 @@ async def test_unchanged_valve_status_is_not_written_twice(db_path, readings, va
 
 
 @pytest.mark.asyncio
-async def test_valve_series_are_not_listed_for_the_app(db_path, readings, valves, monkeypatch):
+async def test_only_valve_position_is_listed_for_the_app(db_path, readings, valves, monkeypatch):
     monkeypatch.setattr(sensor_history, "sensor_rooms", lambda: {"AA": "Kitchen"})
+    monkeypatch.setattr(sensor_history, "trv_rooms", lambda: {"BB": "Kitchen"})
     readings.append(reading())
     valves.append(valve())
     await timeseries.init_timeseries_db()
     db = await timeseries.connect()
     try:
         await sample_once(db)
-        metrics = {s["metric"] for s in await sensor_history.list_series(db)}
-        assert metrics == {"temperature", "humidity"}
+        metrics = [s["metric"] for s in await sensor_history.list_series(db)]
+        assert metrics == ["temperature", "humidity", "valve_position"]
     finally:
         await db.close()
