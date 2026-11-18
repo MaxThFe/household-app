@@ -1,5 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 
+from app.core.auth import require_auth
+
 from app.core.config import settings
 from app.core.database import get_db
 from app.models.spending import (
@@ -8,7 +10,9 @@ from app.models.spending import (
     PurchaseSummary,
     SpendingMonth,
     SpendingMonths,
+    FailingAccount,
 )
+from app.services import grocery_sync
 
 router = APIRouter(prefix="/spending", tags=["spending"])
 
@@ -65,3 +69,15 @@ async def get_purchase(purchase_id: int, db=Depends(get_db)):
     ) as cursor:
         items = [PurchaseItem(**dict(r)) for r in await cursor.fetchall()]
     return PurchaseDetail(**dict(row), items=items)
+
+
+@router.delete("/purchases/{purchase_id}", status_code=204)
+async def delete_purchase(purchase_id: int, db=Depends(get_db), _=Depends(require_auth)):
+    if not await grocery_sync.delete_purchase(db, purchase_id):
+        raise HTTPException(status_code=404, detail="Purchase not found")
+
+
+@router.get("/health", response_model=list[FailingAccount])
+async def get_health():
+    """Accounts whose last sync failed; empty when all is well."""
+    return [FailingAccount(store=s, person=p) for s, p in sorted(grocery_sync.failing)]

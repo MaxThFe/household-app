@@ -37,3 +37,8 @@ class PurchaseItem(BaseModel):
 
 class PurchaseDetail(PurchaseSummary):
     items: list[PurchaseItem]
+
+
+class FailingAccount(BaseModel):
+    store: str
+    person: str

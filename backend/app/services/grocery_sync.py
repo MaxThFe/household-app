@@ -28,6 +28,11 @@ SOURCES = {
 # to renew the same one would log the account out.
 _lock = asyncio.Lock()
 
+# (store, account) pairs whose last sync failed, for the page's status pill.
+# Kept in memory: the sync runs at startup, so it is known again within
+# seconds of a restart.
+failing: set[tuple[str, str]] = set()
+
 
 async def store_receipt(db: aiosqlite.Connection, receipt: Receipt) -> bool:
     """Insert one receipt with its items; False if it was already stored."""
@@ -62,8 +67,31 @@ async def store_receipt(db: aiosqlite.Connection, receipt: Receipt) -> bool:
 
 
 async def _known_ids(db: aiosqlite.Connection, store: str) -> set[str]:
-    async with db.execute("SELECT external_id FROM purchases WHERE store = ?", (store,)) as cursor:
+    """Receipts not to fetch: those stored, and those deleted in the app."""
+    async with db.execute(
+        """SELECT external_id FROM purchases WHERE store = ?
+           UNION SELECT external_id FROM deleted_purchases WHERE store = ?""",
+        (store, store),
+    ) as cursor:
         return {row[0] for row in await cursor.fetchall()}
+
+
+async def delete_purchase(db: aiosqlite.Connection, purchase_id: int) -> bool:
+    """Delete a receipt and its items, and keep the sync from fetching it again."""
+    async with db.execute(
+        "SELECT store, external_id FROM purchases WHERE id = ?", (purchase_id,)
+    ) as cursor:
+        row = await cursor.fetchone()
+    if not row:
+        return False
+    await db.execute(
+        "INSERT OR IGNORE INTO deleted_purchases (store, external_id) VALUES (?, ?)",
+        (row[0], row[1]),
+    )
+    await db.execute("DELETE FROM purchase_items WHERE purchase_id = ?", (purchase_id,))
+    await db.execute("DELETE FROM purchases WHERE id = ?", (purchase_id,))
+    await db.commit()
+    return True
 
 
 async def sync_account(db: aiosqlite.Connection, store: str, account: str) -> int:
@@ -85,12 +113,14 @@ async def sync_all(db: aiosqlite.Connection) -> int:
             for account in module.accounts():
                 try:
                     added += await sync_account(db, store, account)
+                    failing.discard((store, account))
+                    continue
                 except NotConnected as exc:
                     logger.warning("Grocery sync %s:%s: %s", store, account, exc)
-                    await db.rollback()
                 except Exception:
                     logger.exception("Grocery sync %s:%s failed", store, account)
-                    await db.rollback()
+                await db.rollback()
+                failing.add((store, account))
         return added
 
 

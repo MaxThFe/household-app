@@ -292,6 +292,11 @@ export interface PurchaseDetail extends PurchaseSummary {
   items: PurchaseItem[]
 }
 
+export interface FailingAccount {
+  store: GroceryStore
+  person: string
+}
+
 export interface SpendingMonths {
   since: string  // first day counted, YYYY-MM-DD
   months: SpendingMonth[]
@@ -326,6 +331,9 @@ export const api = {
       return request<PurchaseSummary[]>(`${BASE}/spending/purchases?${params}`)
     },
     purchase: (id: number) => request<PurchaseDetail>(`${BASE}/spending/purchases/${id}`),
+    health: () => request<FailingAccount[]>(`${BASE}/spending/health`),
+    deletePurchase: (id: number) =>
+      request<void>(`${BASE}/spending/purchases/${id}`, { method: 'DELETE', headers: authHeaders() }),
   },
 
   thermostats: {

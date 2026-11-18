@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import {
   api,
+  FailingAccount,
   GroceryStore,
   PurchaseDetail,
   PurchaseSummary,
@@ -57,12 +58,17 @@ export default function Spending() {
   const [months, setMonths] = useState<SpendingMonth[]>([])
   const [purchases, setPurchases] = useState<PurchaseSummary[]>([])
   const [open, setOpen] = useState<PurchaseDetail | null>(null)
+  // Bumped after a delete, to load the totals and receipts again.
+  const [reload, setReload] = useState(0)
+  const [failing, setFailing] = useState<FailingAccount[] | null>(null)
+
+  useEffect(() => { api.spending.health().then(setFailing).catch(() => {}) }, [])
 
   useEffect(() => {
     api.spending.months(who || undefined)
       .then(r => { setSince(r.since); setMonths(r.months) })
       .catch(() => {})
-  }, [who])
+  }, [who, reload])
 
   const range = useMemo(() => (since ? monthRange(since.slice(0, 7)) : []), [since])
   const selected = params.get('month') ?? range[range.length - 1] ?? ''
@@ -132,11 +138,6 @@ export default function Spending() {
           <div style={{ marginBottom: 16 }}>
             <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{monthLabel(selected, 'long')}</p>
             <p style={{ fontSize: 30, fontWeight: 500, marginTop: 2 }}>{money(monthTotal(selected))}</p>
-            {average !== null && (
-              <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 2 }}>
-                {euroRound.format(average / 100)} a month on average since {monthLabel(range[0], 'long')}
-              </p>
-            )}
           </div>
         )}
 
@@ -206,6 +207,19 @@ export default function Spending() {
           </div>
         )}
 
+        {failing && (
+          <div style={{ display: 'flex', justifyContent: 'center', marginTop: 8 }}>
+            <span className="pill" style={{ gap: 6, cursor: 'default', background: 'var(--bg-inactive)', color: '#6B5D4D' }}>
+              <span style={{
+                width: 8, height: 8, borderRadius: 4,
+                background: failing.length ? 'var(--accent-red)' : 'var(--accent-green)',
+              }} />
+              {failing.length
+                ? `Sync not working: ${failing.map(f => `${STORE_BY_KEY[f.store].label} (${f.person})`).join(', ')}`
+                : 'Sync working'}
+            </span>
+          </div>
+        )}
       </div>
 
       {open && (
@@ -213,7 +227,7 @@ export default function Spending() {
           title={`${STORE_BY_KEY[open.store].label} · ${new Date(open.purchased_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`}
           onClose={() => setOpen(null)}
         >
-          <ReceiptItems purchase={open} />
+          <ReceiptItems purchase={open} onDeleted={() => { setOpen(null); setReload(r => r + 1) }} />
         </Modal>
       )}
     </div>
@@ -323,12 +337,22 @@ function MonthBars({ range, byMonth, selected, onSelect, average }: {
   )
 }
 
-function ReceiptItems({ purchase }: { purchase: PurchaseDetail }) {
+function ReceiptItems({ purchase, onDeleted }: { purchase: PurchaseDetail, onDeleted: () => void }) {
+  const [deleting, setDeleting] = useState(false)
+
+  async function handleDelete() {
+    if (!confirm('Delete this receipt?')) return
+    setDeleting(true)
+    try {
+      await api.spending.deletePurchase(purchase.id)
+      onDeleted()
+    } catch {
+      setDeleting(false)
+    }
+  }
+
   return (
     <div>
-      {purchase.store_name && (
-        <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8 }}>{purchase.store_name}</p>
-      )}
       {purchase.items.map(item => (
         <div key={item.line_no} style={{ display: 'flex', gap: 8, padding: '6px 0', borderBottom: '0.5px solid var(--border)', fontSize: 14 }}>
           <div style={{ flex: 1, minWidth: 0 }}>
@@ -346,6 +370,9 @@ function ReceiptItems({ purchase }: { purchase: PurchaseDetail }) {
         <span>Total paid</span>
         <span style={{ fontVariantNumeric: 'tabular-nums' }}>{money(purchase.total_cents)}</span>
       </div>
+      <button className="btn-danger" style={{ width: '100%', marginTop: 20 }} onClick={handleDelete} disabled={deleting}>
+        Delete receipt
+      </button>
     </div>
   )
 }

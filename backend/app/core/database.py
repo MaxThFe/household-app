@@ -155,6 +155,15 @@ CREATE TABLE IF NOT EXISTS purchase_items (
     UNIQUE (purchase_id, line_no)
 );
 
+-- Receipts deleted in the app. The store still has them, so the sync skips
+-- these ids rather than fetching them again.
+CREATE TABLE IF NOT EXISTS deleted_purchases (
+    store TEXT NOT NULL,
+    external_id TEXT NOT NULL,
+    deleted_at TEXT DEFAULT (datetime('now')),
+    PRIMARY KEY (store, external_id)
+);
+
 CREATE TABLE IF NOT EXISTS vacuum_overrides (
     date TEXT PRIMARY KEY,
     clean_time TEXT,

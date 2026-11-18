@@ -167,5 +167,38 @@ def test_a_failing_account_leaves_the_others_running(monkeypatch):
             assert await grocery_sync.sync_all(db) == 1
             async with db.execute("SELECT store FROM purchases") as c:
                 assert await c.fetchall() == [("lidl",)]
+            assert grocery_sync.failing == {("ah", "Max")}
+
+            # Once AH works again, it drops off the failing list.
+            monkeypatch.setattr(grocery_ah, "fetch", lambda account, known: asyncio.sleep(0, []))
+            await grocery_sync.sync_all(db)
+            assert grocery_sync.failing == set()
+
+    asyncio.run(run())
+
+
+def test_a_deleted_receipt_is_not_fetched_again(monkeypatch):
+    seen = {}
+
+    async def fetch(account, known):
+        seen["known"] = known
+        return [grocery_lidl.parse_ticket(account, {"id": t, "date": "2026-04-02T17:31:00", "totalAmount": "1,00"})
+                for t in ("a", "b") if t not in known]
+
+    monkeypatch.setattr(grocery_lidl, "fetch", fetch)
+
+    async def run():
+        async with aiosqlite.connect(":memory:") as db:
+            await db.executescript(SCHEMA_SQL)
+            await db.execute("PRAGMA foreign_keys=ON")
+            assert await grocery_sync.sync_account(db, "lidl", "Max") == 2
+            async with db.execute("SELECT id FROM purchases WHERE external_id = 'a'") as c:
+                (purchase_id,) = await c.fetchone()
+            assert await grocery_sync.delete_purchase(db, purchase_id) is True
+            assert await grocery_sync.delete_purchase(db, purchase_id) is False
+            assert await grocery_sync.sync_account(db, "lidl", "Max") == 0
+            assert "a" in seen["known"]
+            async with db.execute("SELECT external_id FROM purchases") as c:
+                assert await c.fetchall() == [("b",)]
 
     asyncio.run(run())
