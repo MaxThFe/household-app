@@ -65,15 +65,12 @@ async def finish(store: str, person: str, pasted: str) -> None:
     await init_db()
     async with aiosqlite.connect(settings.database_path) as db:
         await db.execute("PRAGMA foreign_keys=ON")
-        added = await grocery_sync.sync_account(db, store, person)
-        async with db.execute(
-            "SELECT error FROM grocery_sync_state WHERE source = ?", (f"{store}:{person}",)
-        ) as cursor:
-            (error,) = await cursor.fetchone()
-    if error:
-        print(f"The first sync failed: {error}")
-    else:
-        print(f"First sync done: {added} receipts since {settings.grocery_since}.")
+        try:
+            added = await grocery_sync.sync_account(db, store, person)
+        except Exception as exc:
+            print(f"The first sync failed: {type(exc).__name__}: {exc}")
+            return
+    print(f"First sync done: {added} receipts since {settings.grocery_since}.")
 
 
 def main() -> None:

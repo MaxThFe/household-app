@@ -148,25 +148,24 @@ def test_storing_a_receipt_twice_keeps_one():
     asyncio.run(run())
 
 
-def test_a_failing_account_records_its_error_and_others_still_run(monkeypatch):
+def test_a_failing_account_leaves_the_others_running(monkeypatch):
     async def broken(account, known):
         raise RuntimeError("503 from AH")
 
     async def fine(account, known):
-        return [grocery_ah.parse_receipt(account, {"id": "x", "dateTime": "2026-04-02T17:31:00Z",
-                                                   "totalAmount": {"amount": 1}}, {"products": []})]
+        return [grocery_lidl.parse_ticket(account, {"id": "x", "date": "2026-04-02T17:31:00", "totalAmount": "1,00"})]
+
+    monkeypatch.setattr(grocery_picnic, "accounts", lambda: [])
+    monkeypatch.setattr(grocery_ah, "accounts", lambda: ["Max"])
+    monkeypatch.setattr(grocery_lidl, "accounts", lambda: ["Max"])
+    monkeypatch.setattr(grocery_ah, "fetch", broken)
+    monkeypatch.setattr(grocery_lidl, "fetch", fine)
 
     async def run():
         async with aiosqlite.connect(":memory:") as db:
-            db.row_factory = aiosqlite.Row
             await db.executescript(SCHEMA_SQL)
-            monkeypatch.setattr(grocery_ah, "fetch", broken)
-            assert await grocery_sync.sync_account(db, "ah", "Max") == 0
-            monkeypatch.setattr(grocery_lidl, "fetch", fine)
-            assert await grocery_sync.sync_account(db, "lidl", "Max") == 1
-            async with db.execute("SELECT source, last_success, error FROM grocery_sync_state ORDER BY source") as c:
-                ah, lidl = await c.fetchall()
-            assert ah["error"] == "RuntimeError: 503 from AH" and ah["last_success"] is None
-            assert lidl["error"] is None and lidl["last_success"] is not None
+            assert await grocery_sync.sync_all(db) == 1
+            async with db.execute("SELECT store FROM purchases") as c:
+                assert await c.fetchall() == [("lidl",)]
 
     asyncio.run(run())

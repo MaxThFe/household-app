@@ -8,6 +8,11 @@ class SpendingMonth(BaseModel):
     purchases: int
 
 
+class SpendingMonths(BaseModel):
+    since: str  # first day counted, YYYY-MM-DD
+    months: list[SpendingMonth]
+
+
 class PurchaseSummary(BaseModel):
     id: int
     store: str
@@ -32,17 +37,3 @@ class PurchaseItem(BaseModel):
 
 class PurchaseDetail(PurchaseSummary):
     items: list[PurchaseItem]
-
-
-class SyncSource(BaseModel):
-    source: str  # store:account
-    store: str
-    account: str
-    last_attempt: str | None
-    last_success: str | None
-    error: str | None
-
-
-class SpendingStatus(BaseModel):
-    since: str
-    sources: list[SyncSource]

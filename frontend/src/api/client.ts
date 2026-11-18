@@ -292,18 +292,9 @@ export interface PurchaseDetail extends PurchaseSummary {
   items: PurchaseItem[]
 }
 
-export interface GrocerySyncSource {
-  source: string
-  store: GroceryStore
-  account: string
-  last_attempt: string | null
-  last_success: string | null
-  error: string | null
-}
-
-export interface SpendingStatus {
-  since: string
-  sources: GrocerySyncSource[]
+export interface SpendingMonths {
+  since: string  // first day counted, YYYY-MM-DD
+  months: SpendingMonth[]
 }
 
 // --- API methods ---
@@ -328,16 +319,13 @@ export const api = {
 
   spending: {
     months: (person?: string) =>
-      request<SpendingMonth[]>(`${BASE}/spending/months${person ? `?person=${encodeURIComponent(person)}` : ''}`),
+      request<SpendingMonths>(`${BASE}/spending/months${person ? `?person=${encodeURIComponent(person)}` : ''}`),
     purchases: (month: string, person?: string) => {
       const params = new URLSearchParams({ month })
       if (person) params.set('person', person)
       return request<PurchaseSummary[]>(`${BASE}/spending/purchases?${params}`)
     },
     purchase: (id: number) => request<PurchaseDetail>(`${BASE}/spending/purchases/${id}`),
-    status: () => request<SpendingStatus>(`${BASE}/spending/status`),
-    sync: () =>
-      request<SpendingStatus>(`${BASE}/spending/sync`, { method: 'POST', headers: authHeaders() }),
   },
 
   thermostats: {

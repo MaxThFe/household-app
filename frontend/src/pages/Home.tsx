@@ -52,7 +52,7 @@ export default function Home() {
   }, [today])
 
   useEffect(() => {
-    api.spending.months().then(setSpending).catch(() => {})
+    api.spending.months().then(r => setSpending(r.months)).catch(() => {})
   }, [])
 
   // Sensor readings go stale quickly, so keep them ticking over on their own.

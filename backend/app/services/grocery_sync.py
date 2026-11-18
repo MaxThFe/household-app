@@ -1,9 +1,9 @@
 """Fetches new receipts from every connected grocery account and stores them.
 
-Runs every grocery_sync_interval_hours and on demand. Each account is synced
-on its own, so one store breaking (these are all unofficial APIs) leaves the
-others running; the outcome per account lands in grocery_sync_state for the
-app to show. Only receipts not stored yet are fetched in full.
+Runs every grocery_sync_interval_hours. Each account is synced on its own, so
+one store breaking (these are all unofficial APIs) leaves the others running;
+a failure is logged, and an expired login says to run grocery_setup.py. Only
+receipts not stored yet are fetched in full.
 """
 
 import asyncio
@@ -66,40 +66,16 @@ async def _known_ids(db: aiosqlite.Connection, store: str) -> set[str]:
         return {row[0] for row in await cursor.fetchall()}
 
 
-async def _record(db: aiosqlite.Connection, source: str, error: str | None) -> None:
-    await db.execute(
-        """INSERT INTO grocery_sync_state (source, last_attempt, last_success, error)
-           VALUES (?, datetime('now'), CASE WHEN ? IS NULL THEN datetime('now') END, ?)
-           ON CONFLICT (source) DO UPDATE SET
-               last_attempt = excluded.last_attempt,
-               last_success = COALESCE(excluded.last_success, grocery_sync_state.last_success),
-               error = excluded.error""",
-        (source, error, error),
-    )
-
-
 async def sync_account(db: aiosqlite.Connection, store: str, account: str) -> int:
-    source = f"{store}:{account}"
-    module = SOURCES[store]
-    try:
-        receipts = await module.fetch(account, await _known_ids(db, store))
-        added = 0
-        for receipt in receipts:
-            added += await store_receipt(db, receipt)
-        await _record(db, source, None)
-        await db.commit()
-        if added:
-            logger.info("Grocery sync %s: %d new", source, added)
-        return added
-    except NotConnected as exc:
-        error = str(exc)
-    except Exception as exc:
-        logger.exception("Grocery sync %s failed", source)
-        error = f"{type(exc).__name__}: {exc}"
-    await db.rollback()
-    await _record(db, source, error[:500])
+    """Fetch and store one account's new receipts; returns how many."""
+    receipts = await SOURCES[store].fetch(account, await _known_ids(db, store))
+    added = 0
+    for receipt in receipts:
+        added += await store_receipt(db, receipt)
     await db.commit()
-    return 0
+    if added:
+        logger.info("Grocery sync %s:%s: %d new", store, account, added)
+    return added
 
 
 async def sync_all(db: aiosqlite.Connection) -> int:
@@ -107,7 +83,14 @@ async def sync_all(db: aiosqlite.Connection) -> int:
         added = 0
         for store, module in SOURCES.items():
             for account in module.accounts():
-                added += await sync_account(db, store, account)
+                try:
+                    added += await sync_account(db, store, account)
+                except NotConnected as exc:
+                    logger.warning("Grocery sync %s:%s: %s", store, account, exc)
+                    await db.rollback()
+                except Exception:
+                    logger.exception("Grocery sync %s:%s failed", store, account)
+                    await db.rollback()
         return added
 
 

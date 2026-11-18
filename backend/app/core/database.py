@@ -9,6 +9,8 @@ SCHEMA_SQL = """
 -- Houseplants feature was removed; drop the leftover table.
 -- Safe to delete this statement once it has run in production.
 DROP TABLE IF EXISTS houseplants;
+-- Per-account grocery sync state was shown in the app for a day; dropped.
+DROP TABLE IF EXISTS grocery_sync_state;
 
 CREATE TABLE IF NOT EXISTS recipes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -151,14 +153,6 @@ CREATE TABLE IF NOT EXISTS purchase_items (
     amount_cents INTEGER,
     discount_cents INTEGER NOT NULL DEFAULT 0,
     UNIQUE (purchase_id, line_no)
-);
-
--- Outcome of the last sync per account, e.g. source 'ah:Max'.
-CREATE TABLE IF NOT EXISTS grocery_sync_state (
-    source TEXT PRIMARY KEY,
-    last_attempt TEXT,
-    last_success TEXT,
-    error TEXT
 );
 
 CREATE TABLE IF NOT EXISTS vacuum_overrides (

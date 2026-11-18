@@ -6,7 +6,6 @@ import {
   PurchaseDetail,
   PurchaseSummary,
   SpendingMonth,
-  SpendingStatus,
 } from '../api/client'
 import { useAuth } from '../App'
 import { Modal } from '../components/Modal'
@@ -48,34 +47,24 @@ function monthRange(first: string): string[] {
   return out
 }
 
-function sinceAgo(sqliteUtc: string | null): string {
-  if (!sqliteUtc) return 'never'
-  const minutes = Math.round((Date.now() - new Date(sqliteUtc.replace(' ', 'T') + 'Z').getTime()) / 60_000)
-  if (minutes < 2) return 'just now'
-  if (minutes < 90) return `${minutes} min ago`
-  if (minutes < 36 * 60) return `${Math.round(minutes / 60)} h ago`
-  return `${Math.round(minutes / 1440)} days ago`
-}
-
 export default function Spending() {
   const navigate = useNavigate()
   const { config } = useAuth()
   const [params, setParams] = useSearchParams()
   const who = params.get('who') ?? ''
 
-  const [status, setStatus] = useState<SpendingStatus | null>(null)
+  const [since, setSince] = useState('')
   const [months, setMonths] = useState<SpendingMonth[]>([])
   const [purchases, setPurchases] = useState<PurchaseSummary[]>([])
   const [open, setOpen] = useState<PurchaseDetail | null>(null)
-  const [syncing, setSyncing] = useState(false)
 
-  useEffect(() => { api.spending.status().then(setStatus).catch(() => {}) }, [])
-  useEffect(() => { api.spending.months(who || undefined).then(setMonths).catch(() => {}) }, [who])
+  useEffect(() => {
+    api.spending.months(who || undefined)
+      .then(r => { setSince(r.since); setMonths(r.months) })
+      .catch(() => {})
+  }, [who])
 
-  const range = useMemo(
-    () => (status ? monthRange(status.since.slice(0, 7)) : []),
-    [status],
-  )
+  const range = useMemo(() => (since ? monthRange(since.slice(0, 7)) : []), [since])
   const selected = params.get('month') ?? range[range.length - 1] ?? ''
 
   useEffect(() => {
@@ -88,15 +77,6 @@ export default function Spending() {
     if (value) next.set(key, value)
     else next.delete(key)
     setParams(next, { replace: true })
-  }
-
-  const syncNow = () => {
-    setSyncing(true)
-    api.spending.sync()
-      .then(s => { setStatus(s); return api.spending.months(who || undefined) })
-      .then(setMonths)
-      .catch(() => {})
-      .finally(() => setSyncing(false))
   }
 
   // month -> store -> cents
@@ -170,7 +150,11 @@ export default function Spending() {
                 </span>
               ))}
             </div>
-            <MonthBars range={range} byMonth={byMonth} selected={selected} onSelect={m => update('month', m)} />
+            <MonthBars
+              range={range} byMonth={byMonth} selected={selected} onSelect={m => update('month', m)}
+              // The household's monthly average, on the Everyone view only.
+              average={who === '' && average !== null ? average / 100 : null}
+            />
           </div>
         )}
 
@@ -222,37 +206,6 @@ export default function Spending() {
           </div>
         )}
 
-        {status && (
-          <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-              <p className="section-label" style={{ margin: 0 }}>Accounts</p>
-              <button className="pill pill-inactive" onClick={syncNow} disabled={syncing}>
-                {syncing ? 'Syncing…' : 'Sync now'}
-              </button>
-            </div>
-            {status.sources.length === 0 ? (
-              <div className="card-dashed" style={{ fontSize: 13 }}>
-                No store accounts connected yet
-              </div>
-            ) : (
-              <div className="list-card">
-                {status.sources.map(s => (
-                  <div key={s.source} className="list-row" style={{ fontSize: 13, alignItems: 'flex-start' }}>
-                    <span style={{ width: 10, height: 10, borderRadius: 3, background: STORE_BY_KEY[s.store].color, flexShrink: 0, marginTop: 4 }} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <p>{STORE_BY_KEY[s.store].label} · {s.account}</p>
-                      {s.error ? (
-                        <p style={{ fontSize: 12, color: 'var(--accent-red)', overflowWrap: 'anywhere' }}>⚠ {s.error}</p>
-                      ) : (
-                        <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>Synced {sinceAgo(s.last_success)}</p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
       {open && (
@@ -271,7 +224,7 @@ export default function Spending() {
 
 const W = 440
 const H = 190
-const PAD = { top: 22, right: 8, bottom: 26, left: 44 }
+const PAD = { top: 22, right: 44, bottom: 26, left: 52 }
 const PLOT_W = W - PAD.left - PAD.right
 const PLOT_H = H - PAD.top - PAD.bottom
 
@@ -290,14 +243,16 @@ function topRounded(x: number, y: number, w: number, h: number, r: number) {
   return `M${x},${y + h}V${y + r}Q${x},${y} ${x + r},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h}Z`
 }
 
-function MonthBars({ range, byMonth, selected, onSelect }: {
+function MonthBars({ range, byMonth, selected, onSelect, average }: {
   range: string[]
   byMonth: Map<string, Map<GroceryStore, number>>
   selected: string
   onSelect: (month: string) => void
+  /** Euros a month, drawn as a dashed line across the bars. */
+  average: number | null
 }) {
   const totals = range.map(m => [...(byMonth.get(m)?.values() ?? [])].reduce((a, b) => a + b, 0) / 100)
-  const { max, step } = niceMax(Math.max(...totals, 0))
+  const { max, step } = niceMax(Math.max(...totals, average ?? 0, 0))
   const ticks = Array.from({ length: Math.round(max / step) + 1 }, (_, i) => i * step)
   const slot = PLOT_W / range.length
   const barW = Math.min(34, slot * 0.62)
@@ -354,6 +309,16 @@ function MonthBars({ range, byMonth, selected, onSelect }: {
           </g>
         )
       })}
+      {average !== null && (
+        <g pointerEvents="none">
+          <line x1={PAD.left} x2={W - PAD.right} y1={y(average)} y2={y(average)}
+            stroke="#4A3F35" strokeWidth={1.5} strokeDasharray="5 4" />
+          <text x={W - PAD.right + 6} y={y(average) - 3} fontSize={11} fill="#8B7D6B">avg</text>
+          <text x={W - PAD.right + 6} y={y(average) + 11} fontSize={12} fontWeight={500} fill="#4A3F35">
+            {euroRound.format(average)}
+          </text>
+        </g>
+      )}
     </svg>
   )
 }
