@@ -9,3 +9,7 @@ __pycache__/
 .pytest_cache/
 deploy.log
 data/*.db*
+backend/data/ah_token_*.json
+backend/data/lidl_token_*.json
+backend/data/*_pkce.json
+backend/data/*.tmp

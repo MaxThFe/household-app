@@ -4,6 +4,7 @@ A household PWA for two people:
 
 - **Meals and recipes**: a weekly meal plan drawing on a shared recipe book
 - **Shopping**: a shared list, sorted by store section, that can fill a Picnic cart
+- **Groceries**: what we spend, from Picnic orders and AH and Lidl receipts
 - **Calendar**: shifts, appointments and work events synced from ICS feeds
 - **Tasks**: a board that shows only what needs doing
 - **Rooms**: temperature and humidity from Bluetooth sensors, with history
@@ -37,6 +38,13 @@ Picnic and Roborock need a one-time login per account, which saves a token in `b
 ```bash
 docker compose exec backend python picnic_setup.py <user-name>
 docker compose exec backend python roborock_setup.py
+```
+
+AH and Lidl receipts need a one-time browser login per person, in two steps (the script explains where to find the code):
+
+```bash
+docker compose exec backend python grocery_setup.py ah|lidl <user-name>            # prints the login URL
+docker compose exec backend python grocery_setup.py ah|lidl <user-name> '<app link>'
 ```
 
 ## Local development

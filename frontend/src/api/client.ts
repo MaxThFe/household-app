@@ -255,6 +255,57 @@ export interface PicnicOrderResult {
   error: string | null
 }
 
+// --- Grocery spending ---
+
+export type GroceryStore = 'picnic' | 'ah' | 'lidl'
+
+export interface SpendingMonth {
+  month: string  // YYYY-MM
+  store: GroceryStore
+  total_cents: number
+  purchases: number
+}
+
+export interface PurchaseSummary {
+  id: number
+  store: GroceryStore
+  person: string | null  // null: a shared account
+  purchased_at: string   // local time, YYYY-MM-DDTHH:MM:SS
+  total_cents: number
+  store_name: string
+  item_count: number
+}
+
+export interface PurchaseItem {
+  line_no: number
+  name: string
+  product_id: string | null
+  quantity: number | null
+  unit: string
+  unit_quantity: string
+  unit_price_cents: number | null
+  amount_cents: number | null
+  discount_cents: number
+}
+
+export interface PurchaseDetail extends PurchaseSummary {
+  items: PurchaseItem[]
+}
+
+export interface GrocerySyncSource {
+  source: string
+  store: GroceryStore
+  account: string
+  last_attempt: string | null
+  last_success: string | null
+  error: string | null
+}
+
+export interface SpendingStatus {
+  since: string
+  sources: GrocerySyncSource[]
+}
+
 // --- API methods ---
 
 export const api = {
@@ -273,6 +324,20 @@ export const api = {
       series.forEach(s => params.append('series', s))
       return request<SensorHistory[]>(`${BASE}/sensors/history?${params}`)
     },
+  },
+
+  spending: {
+    months: (person?: string) =>
+      request<SpendingMonth[]>(`${BASE}/spending/months${person ? `?person=${encodeURIComponent(person)}` : ''}`),
+    purchases: (month: string, person?: string) => {
+      const params = new URLSearchParams({ month })
+      if (person) params.set('person', person)
+      return request<PurchaseSummary[]>(`${BASE}/spending/purchases?${params}`)
+    },
+    purchase: (id: number) => request<PurchaseDetail>(`${BASE}/spending/purchases/${id}`),
+    status: () => request<SpendingStatus>(`${BASE}/spending/status`),
+    sync: () =>
+      request<SpendingStatus>(`${BASE}/spending/sync`, { method: 'POST', headers: authHeaders() }),
   },
 
   thermostats: {

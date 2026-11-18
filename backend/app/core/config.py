@@ -48,6 +48,15 @@ class Settings(BaseSettings):
     picnic_user2_email: str = ""
     picnic_user2_password: str = ""
     picnic_country_code: str = "NL"
+    # Grocery spending: receipts from Picnic, AH and Lidl. Nothing before this
+    # date is fetched. AH and Lidl need grocery_setup.py once per person.
+    grocery_since: str = "2026-03-01"
+    grocery_sync_interval_hours: int = 6
+    # The Lidl Plus API turns away app versions it does not recognise; bump
+    # this to a current app release if Lidl syncs start failing with 400/426.
+    lidl_app_version: str = "16.45.5"
+    lidl_country: str = "NL"
+    lidl_language: str = "nl"
     # OpenAI maps shopping items to Picnic products; each mapping is cached.
     openai_api_key: str = ""
     openai_model: str = "gpt-6-luna"

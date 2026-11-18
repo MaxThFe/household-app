@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { api, CalendarEvent, Meal, SensorReading, ShoppingItem, Task, isTaskDue, toISOWeek, todayISO, dateISO, greeting } from '../api/client'
+import { api, CalendarEvent, Meal, SensorReading, ShoppingItem, SpendingMonth, Task, isTaskDue, toISOWeek, todayISO, dateISO, greeting } from '../api/client'
 import { SettingsSidebar } from '../components/SettingsSidebar'
 import { TaskRow, useTaskCompletion } from '../components/TaskRow'
 
@@ -26,6 +26,7 @@ export default function Home() {
   const [shopping, setShopping] = useState<ShoppingItem[]>([])
   const [sensors, setSensors] = useState<SensorReading[]>([])
   const [tasks, setTasks] = useState<Task[]>([])
+  const [spending, setSpending] = useState<SpendingMonth[]>([])
   const [showSettings, setShowSettings] = useState(false)
 
   // Tasks reload on their own after a tick-off, so they are not part of the
@@ -49,6 +50,10 @@ export default function Home() {
       setShopping(Object.values(s.categories).flat())
     }).catch(() => {})
   }, [today])
+
+  useEffect(() => {
+    api.spending.months().then(setSpending).catch(() => {})
+  }, [])
 
   // Sensor readings go stale quickly, so keep them ticking over on their own.
   useEffect(() => {
@@ -77,6 +82,10 @@ export default function Home() {
   const dueTasks = tasks.filter(t => isTaskDue(t))
   const taskPreview = dueTasks.slice(0, BOARD_LIMIT)
   const taskExtra = dueTasks.length - taskPreview.length
+
+  const thisMonth = today.slice(0, 7)
+  const monthSpend = spending.filter(m => m.month === thisMonth).reduce((sum, m) => sum + m.total_cents, 0)
+  const monthName = new Date().toLocaleDateString('en-GB', { month: 'long' })
 
   const todayFormatted = new Date().toLocaleDateString('en-GB', {
     weekday: 'long', day: 'numeric', month: 'long',
@@ -213,6 +222,24 @@ export default function Home() {
                   )}
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Grocery spending, once any receipts have come in */}
+        {spending.length > 0 && (
+          <div style={{ marginBottom: 20 }}>
+            <p className="section-label">Groceries</p>
+            <div className="card" style={{ cursor: 'pointer' }} onClick={() => navigate('/spending')}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <p style={{ fontSize: 15 }}>
+                  <span style={{ fontWeight: 500 }}>
+                    {new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(monthSpend / 100)}
+                  </span>
+                  <span style={{ color: 'var(--text-secondary)' }}> in {monthName}</span>
+                </p>
+                <ChevronRight />
+              </div>
             </div>
           </div>
         )}

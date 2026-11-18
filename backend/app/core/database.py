@@ -115,6 +115,52 @@ CREATE TABLE IF NOT EXISTS picnic_questions (
     created_at TEXT DEFAULT (datetime('now'))
 );
 
+-- Grocery receipts and orders from the supermarkets' apps (Picnic, AH, Lidl),
+-- fetched by grocery_sync. person is whose account it came from, or NULL for
+-- a shared account (Picnic). purchased_at is local time (Europe/Amsterdam).
+-- total_cents is what was paid; raw keeps the store's own JSON so a field we
+-- do not extract yet can be read back later without refetching.
+CREATE TABLE IF NOT EXISTS purchases (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    store TEXT NOT NULL,
+    external_id TEXT NOT NULL,
+    person TEXT,
+    purchased_at TEXT NOT NULL,
+    total_cents INTEGER NOT NULL,
+    store_name TEXT DEFAULT '',
+    raw TEXT NOT NULL,
+    synced_at TEXT DEFAULT (datetime('now')),
+    UNIQUE (store, external_id)
+);
+CREATE INDEX IF NOT EXISTS purchases_purchased_at ON purchases (purchased_at);
+
+-- One line of a purchase. product_id is the store's own id for the product
+-- (Picnic article id, AH POS id, Lidl article code), the key a later product
+-- catalogue can map on. quantity counts packs, or kilos when unit is 'kg'.
+-- amount_cents is the line before discounts, discount_cents what came off it.
+CREATE TABLE IF NOT EXISTS purchase_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    purchase_id INTEGER NOT NULL REFERENCES purchases(id) ON DELETE CASCADE,
+    line_no INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    product_id TEXT,
+    quantity REAL,
+    unit TEXT DEFAULT '',
+    unit_quantity TEXT DEFAULT '',
+    unit_price_cents INTEGER,
+    amount_cents INTEGER,
+    discount_cents INTEGER NOT NULL DEFAULT 0,
+    UNIQUE (purchase_id, line_no)
+);
+
+-- Outcome of the last sync per account, e.g. source 'ah:Max'.
+CREATE TABLE IF NOT EXISTS grocery_sync_state (
+    source TEXT PRIMARY KEY,
+    last_attempt TEXT,
+    last_success TEXT,
+    error TEXT
+);
+
 CREATE TABLE IF NOT EXISTS vacuum_overrides (
     date TEXT PRIMARY KEY,
     clean_time TEXT,

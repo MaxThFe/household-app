@@ -7,6 +7,7 @@ import CalendarPage from './pages/Calendar'
 import Recipes from './pages/Recipes'
 import Rooms from './pages/Rooms'
 import Shopping from './pages/Shopping'
+import Spending from './pages/Spending'
 import Tasks from './pages/Tasks'
 
 // --- Auth context ---
@@ -205,6 +206,7 @@ function AppShell() {
           {/* Sub-pages of Home, so they get no tab of their own. */}
           <Route path="/rooms" element={<Rooms />} />
           <Route path="/tasks" element={<Tasks />} />
+          <Route path="/spending" element={<Spending />} />
         </Routes>
       </div>
       <TabBar />

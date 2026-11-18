@@ -7,8 +7,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.config import settings
 from app.core.database import init_db
 from app.core.timeseries import init_timeseries_db
-from app.routers import calendar, meals, picnic, recipes, sensors, shopping, tasks, thermostats, vacuum
+from app.routers import calendar, meals, picnic, recipes, sensors, shopping, spending, tasks, thermostats, vacuum
 from app.services.ble_sensors import run_ble_sensor_loop
+from app.services.grocery_sync import run_grocery_sync_loop
 from app.services.ics_sync import run_ics_sync_loop
 from app.services.sensor_history import run_sensor_sampler_loop
 from app.services.shelly_trv import run_trv_poll_loop
@@ -24,13 +25,15 @@ async def lifespan(app: FastAPI):
     sensor_task = asyncio.create_task(run_ble_sensor_loop())
     history_task = asyncio.create_task(run_sensor_sampler_loop())
     trv_task = asyncio.create_task(run_trv_poll_loop())
+    grocery_task = asyncio.create_task(run_grocery_sync_loop())
     yield
     sync_task.cancel()
     vacuum_task.cancel()
     sensor_task.cancel()
     history_task.cancel()
     trv_task.cancel()
-    for task in (sync_task, vacuum_task, sensor_task, history_task, trv_task):
+    grocery_task.cancel()
+    for task in (sync_task, vacuum_task, sensor_task, history_task, trv_task, grocery_task):
         try:
             await task
         except asyncio.CancelledError:
@@ -56,6 +59,7 @@ app.include_router(sensors.router, prefix="/api/v1")
 app.include_router(tasks.router, prefix="/api/v1")
 app.include_router(picnic.router, prefix="/api/v1")
 app.include_router(thermostats.router, prefix="/api/v1")
+app.include_router(spending.router, prefix="/api/v1")
 
 
 @app.get("/health")
