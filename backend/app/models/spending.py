@@ -42,3 +42,13 @@ class PurchaseDetail(PurchaseSummary):
 class FailingAccount(BaseModel):
     store: str
     person: str
+
+
+class SpendingStats(BaseModel):
+    """Averages over the complete months since grocery_since; None until
+    there is one."""
+    per_month_cents: int | None
+    per_week_cents: int | None
+    runs_per_week: float | None
+    runs_per_week_by_person: dict[str, float]
+    per_run_cents: int | None

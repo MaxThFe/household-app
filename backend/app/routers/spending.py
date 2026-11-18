@@ -1,3 +1,5 @@
+from datetime import date, datetime
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.core.auth import require_auth
@@ -11,8 +13,10 @@ from app.models.spending import (
     SpendingMonth,
     SpendingMonths,
     FailingAccount,
+    SpendingStats,
 )
 from app.services import grocery_sync
+from app.services.grocery_common import LOCAL_TZ
 
 router = APIRouter(prefix="/spending", tags=["spending"])
 
@@ -81,3 +85,33 @@ async def delete_purchase(purchase_id: int, db=Depends(get_db), _=Depends(requir
 async def get_health():
     """Accounts whose last sync failed; empty when all is well."""
     return [FailingAccount(store=s, person=p) for s, p in sorted(grocery_sync.failing)]
+
+
+@router.get("/stats", response_model=SpendingStats)
+async def get_stats(db=Depends(get_db)):
+    """Household averages, with the runs split per person."""
+    # Complete months only: from grocery_since up to the first of this month.
+    start = date.fromisoformat(settings.grocery_since)
+    end = datetime.now(LOCAL_TZ).date().replace(day=1)
+    months = (end.year - start.year) * 12 + end.month - start.month
+    weeks = (end - start).days / 7
+    if months <= 0:
+        return SpendingStats(per_month_cents=None, per_week_cents=None, runs_per_week=None,
+                             runs_per_week_by_person={}, per_run_cents=None)
+    async with db.execute(
+        """SELECT p.person, COUNT(*) AS runs, SUM(p.total_cents) AS cents
+            FROM purchases p
+            WHERE p.purchased_at >= ? AND p.purchased_at < ?
+            GROUP BY p.person""",
+        (start.isoformat(), end.isoformat()),
+    ) as cursor:
+        rows = await cursor.fetchall()
+    runs = sum(r["runs"] for r in rows)
+    cents = sum(r["cents"] for r in rows)
+    return SpendingStats(
+        per_month_cents=round(cents / months),
+        per_week_cents=round(cents / weeks),
+        runs_per_week=round(runs / weeks, 1),
+        runs_per_week_by_person={r["person"]: round(r["runs"] / weeks, 1) for r in rows},
+        per_run_cents=round(cents / runs) if runs else None,
+    )

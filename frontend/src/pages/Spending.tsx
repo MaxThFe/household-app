@@ -7,6 +7,7 @@ import {
   PurchaseDetail,
   PurchaseSummary,
   SpendingMonth,
+  SpendingStats,
 } from '../api/client'
 import { useAuth } from '../App'
 import { Modal } from '../components/Modal'
@@ -53,6 +54,8 @@ export default function Spending() {
   const { config } = useAuth()
   const [params, setParams] = useSearchParams()
   const who = params.get('who') ?? ''
+  // 'stats' is a tab of its own, not a person.
+  const person = who && who !== 'stats' ? who : undefined
 
   const [since, setSince] = useState('')
   const [months, setMonths] = useState<SpendingMonth[]>([])
@@ -65,18 +68,18 @@ export default function Spending() {
   useEffect(() => { api.spending.health().then(setFailing).catch(() => {}) }, [])
 
   useEffect(() => {
-    api.spending.months(who || undefined)
+    api.spending.months(person)
       .then(r => { setSince(r.since); setMonths(r.months) })
       .catch(() => {})
-  }, [who, reload])
+  }, [person, reload])
 
   const range = useMemo(() => (since ? monthRange(since.slice(0, 7)) : []), [since])
   const selected = params.get('month') ?? range[range.length - 1] ?? ''
 
   useEffect(() => {
     if (!selected) return
-    api.spending.purchases(selected, who || undefined).then(setPurchases).catch(() => {})
-  }, [selected, who, months])
+    api.spending.purchases(selected, person).then(setPurchases).catch(() => {})
+  }, [selected, person, months])
 
   const update = (key: string, value: string) => {
     const next = new URLSearchParams(params)
@@ -99,14 +102,8 @@ export default function Spending() {
   const monthTotal = (month: string) =>
     [...(byMonth.get(month)?.values() ?? [])].reduce((a, b) => a + b, 0)
 
-  // The current month is still running, so it stays out of the average.
-  const complete = range.slice(0, -1)
-  const average = complete.length
-    ? complete.reduce((sum, m) => sum + monthTotal(m), 0) / complete.length
-    : null
-
   const people = config ? [config.user1_name, config.user2_name] : []
-  const filters: [string, string][] = [['', 'Everyone'], ...people.map(p => [p, p] as [string, string])]
+  const filters: [string, string][] = [['', 'Everyone'], ...people.map(p => [p, p] as [string, string]), ['stats', 'Stats']]
 
   return (
     <div>
@@ -134,77 +131,77 @@ export default function Spending() {
           ))}
         </div>
 
-        {selected && (
-          <div style={{ marginBottom: 16 }}>
-            <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{monthLabel(selected, 'long')}</p>
-            <p style={{ fontSize: 30, fontWeight: 500, marginTop: 2 }}>{money(monthTotal(selected))}</p>
-          </div>
-        )}
-
-        {range.length > 0 && (
-          <div className="card" style={{ padding: '12px 10px' }}>
-            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', margin: '0 6px 8px' }}>
-              {STORES.map(s => (
-                <span key={s.key} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-secondary)' }}>
-                  <span style={{ width: 10, height: 10, borderRadius: 3, background: s.color }} />
-                  {s.label}
-                </span>
-              ))}
+        {who === 'stats' ? <Stats /> : (
+          <>
+          {selected && (
+            <div style={{ marginBottom: 16 }}>
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{monthLabel(selected, 'long')}</p>
+              <p style={{ fontSize: 30, fontWeight: 500, marginTop: 2 }}>{money(monthTotal(selected))}</p>
             </div>
-            <MonthBars
-              range={range} byMonth={byMonth} selected={selected} onSelect={m => update('month', m)}
-              // The household's monthly average, on the Everyone view only.
-              average={who === '' && average !== null ? average / 100 : null}
-            />
-          </div>
-        )}
+          )}
 
-        {selected && (
-          <div style={{ margin: '20px 0' }}>
-            <p className="section-label">By store</p>
-            <div className="list-card">
-              {STORES.map(s => {
-                const cents = byMonth.get(selected)?.get(s.key) ?? 0
-                const count = months.find(m => m.month === selected && m.store === s.key)?.purchases ?? 0
-                return (
-                  <div key={s.key} className="list-row" style={{ fontSize: 14 }}>
-                    <span style={{ width: 10, height: 10, borderRadius: 3, background: s.color, flexShrink: 0 }} />
-                    <span style={{ flex: 1 }}>{s.label}</span>
-                    <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                      {count} {count === 1 ? 'receipt' : 'receipts'}
-                    </span>
-                    <span style={{ width: 84, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{money(cents)}</span>
+          {range.length > 0 && (
+            <div className="card" style={{ padding: '12px 10px' }}>
+              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', margin: '0 6px 8px' }}>
+                {STORES.map(s => (
+                  <span key={s.key} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-secondary)' }}>
+                    <span style={{ width: 10, height: 10, borderRadius: 3, background: s.color }} />
+                    {s.label}
+                  </span>
+                ))}
+              </div>
+              <MonthBars range={range} byMonth={byMonth} selected={selected} onSelect={m => update('month', m)} />
+            </div>
+          )}
+
+          {selected && (
+            <div style={{ margin: '20px 0' }}>
+              <p className="section-label">By store</p>
+              <div className="list-card">
+                {STORES.map(s => {
+                  const cents = byMonth.get(selected)?.get(s.key) ?? 0
+                  const count = months.find(m => m.month === selected && m.store === s.key)?.purchases ?? 0
+                  return (
+                    <div key={s.key} className="list-row" style={{ fontSize: 14 }}>
+                      <span style={{ width: 10, height: 10, borderRadius: 3, background: s.color, flexShrink: 0 }} />
+                      <span style={{ flex: 1 }}>{s.label}</span>
+                      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                        {count} {count === 1 ? 'receipt' : 'receipts'}
+                      </span>
+                      <span style={{ width: 84, textAlign: 'right', fontVariantNumeric: 'tabular-nums' }}>{money(cents)}</span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {purchases.length > 0 && (
+            <div style={{ marginBottom: 20 }}>
+              <p className="section-label">Receipts</p>
+              <div className="list-card">
+                {purchases.map(p => (
+                  <div
+                    key={p.id}
+                    className="list-row"
+                    style={{ cursor: 'pointer', fontSize: 14 }}
+                    onClick={() => api.spending.purchase(p.id).then(setOpen).catch(() => {})}
+                  >
+                    <span style={{ width: 10, height: 10, borderRadius: 3, background: STORE_BY_KEY[p.store].color, flexShrink: 0 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p>{STORE_BY_KEY[p.store].label}</p>
+                      <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                        {new Date(p.purchased_at).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
+                        {' · '}{p.person}{' · '}{p.item_count} {p.item_count === 1 ? 'item' : 'items'}
+                      </p>
+                    </div>
+                    <span style={{ fontVariantNumeric: 'tabular-nums' }}>{money(p.total_cents)}</span>
                   </div>
-                )
-              })}
+                ))}
+              </div>
             </div>
-          </div>
-        )}
-
-        {purchases.length > 0 && (
-          <div style={{ marginBottom: 20 }}>
-            <p className="section-label">Receipts</p>
-            <div className="list-card">
-              {purchases.map(p => (
-                <div
-                  key={p.id}
-                  className="list-row"
-                  style={{ cursor: 'pointer', fontSize: 14 }}
-                  onClick={() => api.spending.purchase(p.id).then(setOpen).catch(() => {})}
-                >
-                  <span style={{ width: 10, height: 10, borderRadius: 3, background: STORE_BY_KEY[p.store].color, flexShrink: 0 }} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <p>{STORE_BY_KEY[p.store].label}</p>
-                    <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                      {new Date(p.purchased_at).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
-                      {' · '}{p.person}{' · '}{p.item_count} {p.item_count === 1 ? 'item' : 'items'}
-                    </p>
-                  </div>
-                  <span style={{ fontVariantNumeric: 'tabular-nums' }}>{money(p.total_cents)}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+          )}
+          </>
         )}
 
         {failing && (
@@ -238,7 +235,7 @@ export default function Spending() {
 
 const W = 440
 const H = 190
-const PAD = { top: 22, right: 44, bottom: 26, left: 52 }
+const PAD = { top: 22, right: 8, bottom: 26, left: 52 }
 const PLOT_W = W - PAD.left - PAD.right
 const PLOT_H = H - PAD.top - PAD.bottom
 
@@ -257,16 +254,14 @@ function topRounded(x: number, y: number, w: number, h: number, r: number) {
   return `M${x},${y + h}V${y + r}Q${x},${y} ${x + r},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h}Z`
 }
 
-function MonthBars({ range, byMonth, selected, onSelect, average }: {
+function MonthBars({ range, byMonth, selected, onSelect }: {
   range: string[]
   byMonth: Map<string, Map<GroceryStore, number>>
   selected: string
   onSelect: (month: string) => void
-  /** Euros a month, drawn as a dashed line across the bars. */
-  average: number | null
 }) {
   const totals = range.map(m => [...(byMonth.get(m)?.values() ?? [])].reduce((a, b) => a + b, 0) / 100)
-  const { max, step } = niceMax(Math.max(...totals, average ?? 0, 0))
+  const { max, step } = niceMax(Math.max(...totals, 0))
   const ticks = Array.from({ length: Math.round(max / step) + 1 }, (_, i) => i * step)
   const slot = PLOT_W / range.length
   const barW = Math.min(34, slot * 0.62)
@@ -323,17 +318,41 @@ function MonthBars({ range, byMonth, selected, onSelect, average }: {
           </g>
         )
       })}
-      {average !== null && (
-        <g pointerEvents="none">
-          <line x1={PAD.left} x2={W - PAD.right} y1={y(average)} y2={y(average)}
-            stroke="#4A3F35" strokeWidth={1.5} strokeDasharray="5 4" />
-          <text x={W - PAD.right + 6} y={y(average) - 3} fontSize={11} fill="#8B7D6B">avg</text>
-          <text x={W - PAD.right + 6} y={y(average) + 11} fontSize={12} fontWeight={500} fill="#4A3F35">
-            {euroRound.format(average)}
-          </text>
-        </g>
-      )}
     </svg>
+  )
+}
+
+// --- the stats tab ---------------------------------------------------------------
+
+/** Household averages over the complete months, with runs split per person. */
+function Stats() {
+  const [stats, setStats] = useState<SpendingStats | null>(null)
+  useEffect(() => { api.spending.stats().then(setStats).catch(() => {}) }, [])
+  if (!stats) return null
+  if (stats.per_month_cents === null) {
+    return <div className="card-dashed" style={{ fontSize: 13 }}>No complete month yet</div>
+  }
+  const runs = (n: number) => n.toLocaleString('nl-NL', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+  const perPerson = Object.entries(stats.runs_per_week_by_person)
+  const rows: [string, string, string?][] = [
+    ['Avg monthly', money(stats.per_month_cents)],
+    ['Avg weekly', money(stats.per_week_cents ?? 0)],
+    ['Runs per week', runs(stats.runs_per_week ?? 0),
+      perPerson.map(([p, n]) => `${p} ${runs(n)}`).join(' · ')],
+    ['Avg per run', stats.per_run_cents !== null ? money(stats.per_run_cents) : '–'],
+  ]
+  return (
+    <div className="list-card" style={{ marginBottom: 20 }}>
+      {rows.map(([label, value, detail]) => (
+        <div key={label} className="list-row" style={{ fontSize: 14, alignItems: 'flex-start' }}>
+          <div style={{ flex: 1 }}>
+            <p>{label}</p>
+            {detail && <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>{detail}</p>}
+          </div>
+          <span style={{ fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>{value}</span>
+        </div>
+      ))}
+    </div>
   )
 }
 

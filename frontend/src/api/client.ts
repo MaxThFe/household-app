@@ -297,6 +297,14 @@ export interface FailingAccount {
   person: string
 }
 
+export interface SpendingStats {
+  per_month_cents: number | null
+  per_week_cents: number | null
+  runs_per_week: number | null
+  runs_per_week_by_person: Record<string, number>
+  per_run_cents: number | null
+}
+
 export interface SpendingMonths {
   since: string  // first day counted, YYYY-MM-DD
   months: SpendingMonth[]
@@ -331,6 +339,7 @@ export const api = {
       return request<PurchaseSummary[]>(`${BASE}/spending/purchases?${params}`)
     },
     purchase: (id: number) => request<PurchaseDetail>(`${BASE}/spending/purchases/${id}`),
+    stats: () => request<SpendingStats>(`${BASE}/spending/stats`),
     health: () => request<FailingAccount[]>(`${BASE}/spending/health`),
     deletePurchase: (id: number) =>
       request<void>(`${BASE}/spending/purchases/${id}`, { method: 'DELETE', headers: authHeaders() }),
