@@ -44,11 +44,15 @@ class FailingAccount(BaseModel):
     person: str
 
 
+class Stat(BaseModel):
+    total: float | None
+    by_person: dict[str, float]
+
+
 class SpendingStats(BaseModel):
-    """Averages over the complete months since grocery_since; None until
-    there is one."""
-    per_month_cents: int | None
-    per_week_cents: int | None
-    runs_per_week: float | None
-    runs_per_week_by_person: dict[str, float]
-    per_run_cents: int | None
+    """Averages over the complete months since grocery_since, for the
+    household and per person; totals are None until there is one."""
+    per_month_cents: Stat
+    per_week_cents: Stat
+    runs_per_week: Stat
+    per_run_cents: Stat

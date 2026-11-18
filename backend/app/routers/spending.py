@@ -14,6 +14,7 @@ from app.models.spending import (
     SpendingMonths,
     FailingAccount,
     SpendingStats,
+    Stat,
 )
 from app.services import grocery_sync
 from app.services.grocery_common import LOCAL_TZ
@@ -89,29 +90,35 @@ async def get_health():
 
 @router.get("/stats", response_model=SpendingStats)
 async def get_stats(db=Depends(get_db)):
-    """Household averages, with the runs split per person."""
+    """Household averages, each also per person."""
     # Complete months only: from grocery_since up to the first of this month.
     start = date.fromisoformat(settings.grocery_since)
     end = datetime.now(LOCAL_TZ).date().replace(day=1)
     months = (end.year - start.year) * 12 + end.month - start.month
     weeks = (end - start).days / 7
-    if months <= 0:
-        return SpendingStats(per_month_cents=None, per_week_cents=None, runs_per_week=None,
-                             runs_per_week_by_person={}, per_run_cents=None)
-    async with db.execute(
-        """SELECT p.person, COUNT(*) AS runs, SUM(p.total_cents) AS cents
-            FROM purchases p
-            WHERE p.purchased_at >= ? AND p.purchased_at < ?
-            GROUP BY p.person""",
-        (start.isoformat(), end.isoformat()),
-    ) as cursor:
-        rows = await cursor.fetchall()
-    runs = sum(r["runs"] for r in rows)
-    cents = sum(r["cents"] for r in rows)
+    rows = []
+    if months > 0:
+        async with db.execute(
+            """SELECT p.person, COUNT(*) AS runs, SUM(p.total_cents) AS cents
+               FROM purchases p
+               WHERE p.purchased_at >= ? AND p.purchased_at < ?
+               GROUP BY p.person ORDER BY p.person""",
+            (start.isoformat(), end.isoformat()),
+        ) as cursor:
+            rows = [(r["person"], r["runs"], r["cents"]) for r in await cursor.fetchall()]
+    runs = sum(r[1] for r in rows)
+    cents = sum(r[2] for r in rows)
+
+    def stat(value) -> Stat:
+        """value(runs, cents) for the household and for each person."""
+        return Stat(
+            total=value(runs, cents) if months > 0 and runs else None,
+            by_person={person: value(n, c) for person, n, c in rows},
+        )
+
     return SpendingStats(
-        per_month_cents=round(cents / months),
-        per_week_cents=round(cents / weeks),
-        runs_per_week=round(runs / weeks, 1),
-        runs_per_week_by_person={r["person"]: round(r["runs"] / weeks, 1) for r in rows},
-        per_run_cents=round(cents / runs) if runs else None,
+        per_month_cents=stat(lambda n, c: round(c / months)),
+        per_week_cents=stat(lambda n, c: round(c / weeks)),
+        runs_per_week=stat(lambda n, c: round(n / weeks, 1)),
+        per_run_cents=stat(lambda n, c: round(c / n)),
     )

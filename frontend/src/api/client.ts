@@ -297,12 +297,16 @@ export interface FailingAccount {
   person: string
 }
 
+export interface Stat {
+  total: number | null
+  by_person: Record<string, number>
+}
+
 export interface SpendingStats {
-  per_month_cents: number | null
-  per_week_cents: number | null
-  runs_per_week: number | null
-  runs_per_week_by_person: Record<string, number>
-  per_run_cents: number | null
+  per_month_cents: Stat
+  per_week_cents: Stat
+  runs_per_week: Stat
+  per_run_cents: Stat
 }
 
 export interface SpendingMonths {

@@ -8,6 +8,7 @@ import {
   PurchaseSummary,
   SpendingMonth,
   SpendingStats,
+  Stat,
 } from '../api/client'
 import { useAuth } from '../App'
 import { Modal } from '../components/Modal'
@@ -324,34 +325,37 @@ function MonthBars({ range, byMonth, selected, onSelect }: {
 
 // --- the stats tab ---------------------------------------------------------------
 
-/** Household averages over the complete months, with runs split per person. */
+/** Household averages over the complete months, each split per person. */
 function Stats() {
   const [stats, setStats] = useState<SpendingStats | null>(null)
   useEffect(() => { api.spending.stats().then(setStats).catch(() => {}) }, [])
   if (!stats) return null
-  if (stats.per_month_cents === null) {
+  if (stats.per_month_cents.total === null) {
     return <div className="card-dashed" style={{ fontSize: 13 }}>No complete month yet</div>
   }
   const runs = (n: number) => n.toLocaleString('nl-NL', { minimumFractionDigits: 1, maximumFractionDigits: 1 })
-  const perPerson = Object.entries(stats.runs_per_week_by_person)
-  const rows: [string, string, string?][] = [
-    ['Avg monthly', money(stats.per_month_cents)],
-    ['Avg weekly', money(stats.per_week_cents ?? 0)],
-    ['Runs per week', runs(stats.runs_per_week ?? 0),
-      perPerson.map(([p, n]) => `${p} ${runs(n)}`).join(' · ')],
-    ['Avg per run', stats.per_run_cents !== null ? money(stats.per_run_cents) : '–'],
+  const sections: [string, Stat, (n: number) => string][] = [
+    ['Avg monthly', stats.per_month_cents, money],
+    ['Avg weekly', stats.per_week_cents, money],
+    ['Runs per week', stats.runs_per_week, runs],
+    ['Avg per run', stats.per_run_cents, money],
   ]
   return (
     <div className="list-card" style={{ marginBottom: 20 }}>
-      {rows.map(([label, value, detail]) => (
-        <div key={label} className="list-row" style={{ fontSize: 14, alignItems: 'flex-start' }}>
-          <div style={{ flex: 1 }}>
-            <p>{label}</p>
-            {detail && <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>{detail}</p>}
+      {sections.flatMap(([label, stat, format]) => [
+        <div key={label} className="list-row" style={{ fontSize: 14 }}>
+          <span style={{ flex: 1 }}>{label}</span>
+          <span style={{ fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>
+            {stat.total !== null ? format(stat.total) : '–'}
+          </span>
+        </div>,
+        ...Object.entries(stat.by_person).map(([person, value]) => (
+          <div key={`${label}:${person}`} className="list-row" style={{ fontSize: 13, paddingLeft: 32, color: 'var(--text-secondary)' }}>
+            <span style={{ flex: 1 }}>{person}</span>
+            <span style={{ fontVariantNumeric: 'tabular-nums' }}>{format(value)}</span>
           </div>
-          <span style={{ fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}>{value}</span>
-        </div>
-      ))}
+        )),
+      ])}
     </div>
   )
 }
