@@ -11,7 +11,7 @@ class SpendingMonth(BaseModel):
 class PurchaseSummary(BaseModel):
     id: int
     store: str
-    person: str | None
+    person: str
     purchased_at: str
     total_cents: int
     store_name: str

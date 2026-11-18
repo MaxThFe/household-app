@@ -120,7 +120,7 @@ export default function Spending() {
     : null
 
   const people = config ? [config.user1_name, config.user2_name] : []
-  const filters: [string, string][] = [['', 'Everyone'], ...people.map(p => [p, p] as [string, string]), ['shared', 'Shared']]
+  const filters: [string, string][] = [['', 'Everyone'], ...people.map(p => [p, p] as [string, string])]
 
   return (
     <div>
@@ -212,7 +212,7 @@ export default function Spending() {
                     <p>{STORE_BY_KEY[p.store].label}</p>
                     <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>
                       {new Date(p.purchased_at).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}
-                      {' · '}{p.person ?? 'Shared'}{' · '}{p.item_count} {p.item_count === 1 ? 'item' : 'items'}
+                      {' · '}{p.person}{' · '}{p.item_count} {p.item_count === 1 ? 'item' : 'items'}
                     </p>
                   </div>
                   <span style={{ fontVariantNumeric: 'tabular-nums' }}>{money(p.total_cents)}</span>
@@ -240,7 +240,7 @@ export default function Spending() {
                   <div key={s.source} className="list-row" style={{ fontSize: 13, alignItems: 'flex-start' }}>
                     <span style={{ width: 10, height: 10, borderRadius: 3, background: STORE_BY_KEY[s.store].color, flexShrink: 0, marginTop: 4 }} />
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <p>{STORE_BY_KEY[s.store].label} · {s.store === 'picnic' ? `shared, through ${s.account}'s login` : s.account}</p>
+                      <p>{STORE_BY_KEY[s.store].label} · {s.account}</p>
                       {s.error ? (
                         <p style={{ fontSize: 12, color: 'var(--accent-red)', overflowWrap: 'anywhere' }}>⚠ {s.error}</p>
                       ) : (

@@ -40,7 +40,7 @@ class Item:
 class Receipt:
     store: str
     external_id: str
-    person: str | None
+    person: str
     purchased_at: datetime  # timezone-aware
     total_cents: int
     raw: dict

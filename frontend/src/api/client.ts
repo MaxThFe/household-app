@@ -269,7 +269,7 @@ export interface SpendingMonth {
 export interface PurchaseSummary {
   id: number
   store: GroceryStore
-  person: string | null  // null: a shared account
+  person: string
   purchased_at: string   // local time, YYYY-MM-DDTHH:MM:SS
   total_cents: number
   store_name: string

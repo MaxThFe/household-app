@@ -61,9 +61,9 @@ def test_picnic_delivery_becomes_one_receipt_per_completed_order():
             {"id": "o2", "status": "CANCELLED", "total_price": 100, "items": []},
         ],
     }
-    [receipt] = grocery_picnic.receipts_from_delivery(delivery)
+    [receipt] = grocery_picnic.receipts_from_delivery("Max", delivery)
     assert receipt.external_id == "o1"
-    assert receipt.person is None
+    assert receipt.person == "Max"
     assert receipt.total_cents == 5868
     assert local_iso(receipt.purchased_at) == "2026-04-18T09:58:05"
     milk, soap, bananas = receipt.items

@@ -116,8 +116,8 @@ CREATE TABLE IF NOT EXISTS picnic_questions (
 );
 
 -- Grocery receipts and orders from the supermarkets' apps (Picnic, AH, Lidl),
--- fetched by grocery_sync. person is whose account it came from, or NULL for
--- a shared account (Picnic). purchased_at is local time (Europe/Amsterdam).
+-- fetched by grocery_sync. person is whose account it came from.
+-- purchased_at is local time (Europe/Amsterdam).
 -- total_cents is what was paid; raw keeps the store's own JSON so a field we
 -- do not extract yet can be read back later without refetching.
 CREATE TABLE IF NOT EXISTS purchases (

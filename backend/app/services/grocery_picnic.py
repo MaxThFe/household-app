@@ -1,8 +1,6 @@
 """Picnic orders, through the login picnic_client already keeps per user.
 
-The household shares one Picnic account, so orders carry no person. Every
-connected login is read and orders are matched on their id, so it does not
-matter which of the logins the shared account is.
+Like AH and Lidl, an order belongs to the person whose account placed it.
 
 A delivery holds one or more orders (a top-up order rides along with the
 main one). Each order line has one article; its QUANTITY decorator is the
@@ -53,7 +51,7 @@ def _items(order: dict) -> list[Item]:
     return items
 
 
-def receipts_from_delivery(delivery: dict) -> list[Receipt]:
+def receipts_from_delivery(person: str, delivery: dict) -> list[Receipt]:
     when = (
         (delivery.get("delivery_time") or {}).get("start")
         or (delivery.get("eta2") or {}).get("start")
@@ -67,7 +65,7 @@ def receipts_from_delivery(delivery: dict) -> list[Receipt]:
         receipts.append(Receipt(
             store=STORE,
             external_id=order["id"],
-            person=None,
+            person=person,
             purchased_at=parse_datetime(when),
             # checkout_total_price includes the bag and bottle deposits.
             total_cents=total if total is not None else order["total_price"],
@@ -98,4 +96,4 @@ def _new_since(account: str, known: set[str]) -> list[dict]:
 
 async def fetch(account: str, known: set[str]) -> list[Receipt]:
     deliveries = await asyncio.to_thread(_new_since, account, known)
-    return [r for d in deliveries for r in receipts_from_delivery(d) if r.external_id not in known]
+    return [r for d in deliveries for r in receipts_from_delivery(account, d) if r.external_id not in known]

@@ -15,8 +15,7 @@ from app.services import grocery_sync
 
 router = APIRouter(prefix="/spending", tags=["spending"])
 
-# person: a name, or 'shared' for purchases from a shared account.
-PERSON_FILTER = "(? IS NULL OR (? = 'shared' AND p.person IS NULL) OR p.person = ?)"
+PERSON_FILTER = "(? IS NULL OR p.person = ?)"
 
 
 @router.get("/months", response_model=list[SpendingMonth])
@@ -27,7 +26,7 @@ async def get_months(person: str | None = None, db=Depends(get_db)):
             FROM purchases p
             WHERE p.purchased_at >= ? AND {PERSON_FILTER}
             GROUP BY month, p.store ORDER BY month, p.store""",
-        (settings.grocery_since, person, person, person),
+        (settings.grocery_since, person, person),
     ) as cursor:
         return [SpendingMonth(**dict(r)) for r in await cursor.fetchall()]
 
@@ -49,7 +48,7 @@ async def list_purchases(
         f"""{_SUMMARY_SQL}
             WHERE substr(p.purchased_at, 1, 7) = ? AND p.purchased_at >= ? AND {PERSON_FILTER}
             ORDER BY p.purchased_at DESC""",
-        (month, settings.grocery_since, person, person, person),
+        (month, settings.grocery_since, person, person),
     ) as cursor:
         return [PurchaseSummary(**dict(r)) for r in await cursor.fetchall()]
 
